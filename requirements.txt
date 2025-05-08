@@ -1,0 +1,20 @@
+nltk
+numpy
+transformers
+sentence-transformers
+scipy
+pytubefix
+yt_dlp
+bs4
+pandas
+pysentimiento
+requests
+urllib3
+torch
+matplotlib
+jinja2
+fastapi 
+uvicorn
+python-multipart
+#torch==2.0.1+cu128 # Para CUDA 12.8
+#torch==2.0.1+cpu

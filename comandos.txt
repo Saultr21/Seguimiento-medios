@@ -1,0 +1,7 @@
+Iniciar el servidor:
+uvicorn app:app --host 0.0.0.0 --reload --log-level debug
+
+python -m venv venv
+venv\Scripts\activate.bat
+
+
