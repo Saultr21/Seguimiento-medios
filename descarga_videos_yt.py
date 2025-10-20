@@ -156,6 +156,16 @@ def generar_nombre_base_para_video(titulo_video: str) -> str:
 # ════════════════════════════════════════════════
 
 def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
+    if not keyword or not keyword.strip():
+        print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
+        videos = []
+        for i, vid in enumerate(Channel(channel_url).videos):
+            videos.append({"titulo": vid.title, "yt": vid})
+            if len(videos) >= limite:
+                break
+        print(f"Se seleccionaron {len(videos)} vídeos (ultimos del canal).", flush=True)
+        return videos
+
     print(f"Buscando hasta {limite} vídeos con ‘{keyword}’ en el título…", flush=True)
     videos = []
     for vid in Channel(channel_url).videos:

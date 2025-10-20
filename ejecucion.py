@@ -60,10 +60,8 @@ def flujo_completo(
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
     
-    if not channel_keyword and video_limit > 0:
-        print("Error: No se proporcionó la palabra clave para filtrar videos de YouTube y se solicitó procesar videos del canal.", flush=True)
-        print("PROGRESS:100:Flujo terminado con error.", flush=True)
-        return
+    # Si no hay palabra clave, aceptamos y en la función de filtrado se tomarán los últimos videos
+    # (por compatibilidad con la nueva opción de procesar los últimos N del canal).
     
     if video_limit is None or not isinstance(video_limit, int) or video_limit < 0:
         print("Error: El límite de videos no es válido. Debe ser un entero mayor o igual a 0.", flush=True)

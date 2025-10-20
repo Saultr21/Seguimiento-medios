@@ -37,11 +37,8 @@
             </div>
             <div class="mb-3">
               <label for="channel_keyword" class="form-label">Palabra clave para buscar videos en el canal:</label>
-              <input type="text" class="form-control" id="channel_keyword" name="channel_keyword" value="Telenoticias"
-                required>
-              <div class="invalid-feedback">
-                Este campo no puede quedar vacío.
-              </div>
+              <input type="text" class="form-control" id="channel_keyword" name="channel_keyword" value="Telenoticias">
+              <div class="form-text">Dejar vacío para procesar los últimos videos del canal sin filtrar por título.</div>
             </div>
             <div class="mb-3">
               <label for="video_limit" class="form-label">Número de videos a procesar del canal:</label>
@@ -106,7 +103,7 @@
           aria-expanded="false" aria-controls="collapseMentions">
           <div class="d-flex justify-content-between align-items-center">
             <h2 class="mb-0">
-              Filtrado de Menciones en Transcripciones (Obligatorio)
+              Filtrado de Menciones en Transcripciones (Opcional para solo transcribir)
             </h2>
             <span class="collapse-indicator"><i class="bi bi-chevron-down"></i></span>
           </div>
