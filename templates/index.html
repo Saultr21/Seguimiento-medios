@@ -122,6 +122,15 @@
         </div>
       </div>
       <button type="submit" class="btn btn-primary w-100">Ejecutar Flujo</button>
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox" value="1" id="only_transcribe" name="only_transcribe">
+        <label class="form-check-label" for="only_transcribe">
+          Solo transcribir (sin extracción de contextos ni análisis de sentimientos)
+        </label>
+      </div>
+      <div id="only-transcribe-note" class="form-text text-muted mt-1" style="display:none;">
+        Nota: Al activar "Solo transcribir" no es necesario añadir palabras clave para filtrado de menciones.
+      </div>
     </form>
     <!-- Barra de progreso -->
     <div class="my-4">
@@ -158,6 +167,10 @@
         e.preventDefault();
 
         // VALIDACIÓN: Al menos una fuente de medios debe estar configurada
+        // Si está marcada la opción 'Solo transcribir' se omite esta validación.
+        const onlyTranscribeCheckbox = form.querySelector('#only_transcribe');
+        const onlyTranscribeChecked = onlyTranscribeCheckbox && onlyTranscribeCheckbox.checked;
+
         const videoLimitInput = form.querySelector('#video_limit');
         const podcastLimitInput = form.querySelector('#podcast_limit');
         const singleVideoUrlInputs = form.querySelectorAll('input[name="single_video_urls"]');
@@ -166,33 +179,36 @@
         const areSingleVideosProvided = Array.from(singleVideoUrlInputs).some(input => input.value.trim() !== '');
         const isPodcastProcessingEnabled = podcastLimitInput && parseInt(podcastLimitInput.value, 10) > 0;
 
-        if (!isChannelProcessingEnabled && !areSingleVideosProvided && !isPodcastProcessingEnabled) {
-          alert("Debe configurar al menos una fuente de medios para procesar (vídeos de canal, vídeos únicos o podcasts).");
+        if (!onlyTranscribeChecked && !isChannelProcessingEnabled && !areSingleVideosProvided && !isPodcastProcessingEnabled) {
+          alert("Debe configurar al menos una fuente de medios para procesar (vídeos de canal, vídeos únicos o podcasts), o marcar 'Solo transcribir'.");
           return; 
         }
 
         const mentionInputs = form.querySelectorAll('input[name="mention_keyword"]');
-        let allMentionsFilled = true;
-        let atLeastOneMentionExists = mentionInputs.length > 0;
+        // Si está marcada la opción 'Solo transcribir', no hace falta rellenar las palabras clave
+        if (!onlyTranscribeChecked) {
+          let allMentionsFilled = true;
+          let atLeastOneMentionExists = mentionInputs.length > 0;
 
-        if (!atLeastOneMentionExists) {
-          alert("Debe añadir al menos una palabra clave para filtrar menciones.");
-          return;
-        }
-
-        for (const input of mentionInputs) {
-          if (!input.value.trim()) {
-            allMentionsFilled = false;
-            input.classList.add('is-invalid');
-          } else {
-            input.classList.remove('is-invalid');
+          if (!atLeastOneMentionExists) {
+            alert("Debe añadir al menos una palabra clave para filtrar menciones.");
+            return;
           }
-        }
 
-        if (!allMentionsFilled) {
-          alert("Todos los campos de palabras clave para menciones deben estar llenos.");
-          form.classList.add('was-validated');
-          return;
+          for (const input of mentionInputs) {
+            if (!input.value.trim()) {
+              allMentionsFilled = false;
+              input.classList.add('is-invalid');
+            } else {
+              input.classList.remove('is-invalid');
+            }
+          }
+
+          if (!allMentionsFilled) {
+            alert("Todos los campos de palabras clave para menciones deben estar llenos.");
+            form.classList.add('was-validated');
+            return;
+          }
         }
 
         for (const input of singleVideoUrlInputs) {
@@ -211,7 +227,12 @@
         progressBar.textContent = '0%';
         progressBar.classList.add('progress-bar-animated');
         progressBar.classList.remove('bg-success', 'bg-danger');
-        downloadCsvBtn.style.display = 'none'; 
+        // Si se marcó 'Solo transcribir' ocultar el botón de descarga de CSV
+        if (onlyTranscribeChecked) {
+          downloadCsvBtn.style.display = 'none';
+        } else {
+          downloadCsvBtn.style.display = 'none';
+        }
         form.classList.add('was-validated');
 
 
@@ -228,15 +249,14 @@
               processLine(buffer); 
               buffer = ''; 
             }
-            if (output.textContent.includes("Proceso terminado con código: 0")) {
-              progressBar.style.width = '100%';
-              progressBar.textContent = '100%';
-              progressBar.classList.add('bg-success');
-              downloadCsvBtn.href = '/descargar-csv'; 
-              downloadCsvBtn.style.display = 'block'; 
-            } else if (output.textContent.includes("Proceso terminado con código:")) {
-              progressBar.classList.add('bg-danger');
-            }
+                if (output.textContent.includes("Proceso terminado con código: 0")) {
+                  progressBar.style.width = '100%';
+                  progressBar.textContent = '100%';
+                  progressBar.classList.add('bg-success');
+                  // El botón de descarga se mostrará únicamente si el backend envía CSV_AVAILABLE:1
+                } else if (output.textContent.includes("Proceso terminado con código:")) {
+                  progressBar.classList.add('bg-danger');
+                }
             progressBar.classList.remove('progress-bar-animated');
             output.scrollTop = output.scrollHeight; 
             break;
@@ -245,11 +265,18 @@
           buffer += decoder.decode(value, { stream: true });
           
           let newlineIndex;
-          while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-            const line = buffer.substring(0, newlineIndex);
-            processLine(line);
-            buffer = buffer.substring(newlineIndex + 1);
-          }
+            while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+              const line = buffer.substring(0, newlineIndex);
+              processLine(line);
+              // Detectar marcador CSV
+              if (line.trim() === 'CSV_AVAILABLE:1') {
+                downloadCsvBtn.href = '/descargar-csv';
+                downloadCsvBtn.style.display = 'block';
+              } else if (line.trim() === 'CSV_AVAILABLE:0') {
+                downloadCsvBtn.style.display = 'none';
+              }
+              buffer = buffer.substring(newlineIndex + 1);
+            }
         }
       }, false);
 
@@ -342,6 +369,19 @@
           e.target.closest('.single-video-item').remove();
         }
       });
+
+      // Mostrar/ocultar nota informativa al marcar 'Solo transcribir'
+      const onlyTranscribeCheckbox = document.getElementById('only_transcribe');
+      const onlyTranscribeNote = document.getElementById('only-transcribe-note');
+      if (onlyTranscribeCheckbox && onlyTranscribeNote) {
+        onlyTranscribeCheckbox.addEventListener('change', () => {
+          if (onlyTranscribeCheckbox.checked) {
+            onlyTranscribeNote.style.display = 'block';
+          } else {
+            onlyTranscribeNote.style.display = 'none';
+          }
+        });
+      }
 
     })();
   </script>
