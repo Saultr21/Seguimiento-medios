@@ -6,7 +6,13 @@ import warnings
 from pathlib import Path
 from typing import List, Dict
 import logging
-import torch
+import sys
+try:
+    import torch
+    _TORCH_AVAILABLE = True
+except Exception:  # pragma: no cover - entorno puede no tener torch
+    torch = None
+    _TORCH_AVAILABLE = False
 from pytubefix import Channel, YouTube
 from transformers import (
     AutoModelForSpeechSeq2Seq,
@@ -29,29 +35,89 @@ TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
 WHISPER_MODEL_ID = config["whisper_model_url"]
 
 # ════════════════════════════════════════════════
-# Carga única del modelo Whisper
+# Carga única del modelo Whisper (más robusta)
+# - Soporta ausencia de torch
+# - Permite forzar dispositivo con la variable de entorno FORCE_DEVICE
 # ════════════════════════════════════════════════
-_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-_DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
 
-_MODEL = AutoModelForSpeechSeq2Seq.from_pretrained(
-    WHISPER_MODEL_ID,
-    torch_dtype=_DTYPE,
-    low_cpu_mem_usage=True,
-    use_safetensors=True,
-).to(_DEVICE)
-_PROCESSOR = AutoProcessor.from_pretrained(WHISPER_MODEL_ID)
-_FORCED_IDS = _PROCESSOR.get_decoder_prompt_ids(language="spanish", task="transcribe")
+# Variable de entorno para forzar dispositivo, por ejemplo: FORCE_DEVICE=cuda:0 o FORCE_DEVICE=cpu
+FORCE_DEVICE = os.getenv("FORCE_DEVICE", "").strip()
 
-ASR_PIPE = pipeline(
-    "automatic-speech-recognition",
-    model=_MODEL,
-    tokenizer=_PROCESSOR.tokenizer,
-    feature_extractor=_PROCESSOR.feature_extractor,
-    device=_DEVICE,
-    torch_dtype=_DTYPE,
-    generate_kwargs={"forced_decoder_ids": _FORCED_IDS},
-)
+def _resolve_device_and_dtype():
+    """Devuelve (device_str, dtype_or_none, pipeline_device_int).
+    pipeline_device_int es -1 para CPU o índice de CUDA (0,1,...)
+    """
+    if not _TORCH_AVAILABLE:
+        return "cpu", None, -1
+
+    # Si se fuerza explícitamente
+    if FORCE_DEVICE:
+        fd = FORCE_DEVICE.lower()
+        if fd in ("cpu", "-1"):
+            return "cpu", torch.float32, -1
+        m = re.match(r"cuda[:]?([0-9]+)?", fd)
+        if m:
+            idx = int(m.group(1)) if m.group(1) is not None else 0
+            # Si torch detecta cuda disponible usamos float16 por ahorro de memoria
+            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+            return f"cuda:{idx}", dtype, idx
+
+    # Detección automática
+    if _TORCH_AVAILABLE and torch.cuda.is_available():
+        return "cuda:0", torch.float16, 0
+    return "cpu", torch.float32, -1
+
+
+_DEVICE, _DTYPE, _PIPELINE_DEVICE = _resolve_device_and_dtype()
+
+if _TORCH_AVAILABLE:
+    try:
+        model_kwargs = {"low_cpu_mem_usage": True, "use_safetensors": True}
+        if _DTYPE is not None:
+            model_kwargs["torch_dtype"] = _DTYPE
+        _MODEL = AutoModelForSpeechSeq2Seq.from_pretrained(WHISPER_MODEL_ID, **model_kwargs)
+        # Intentar mover modelo al dispositivo (si falla, pipeline puede manejarlo)
+        try:
+            _MODEL = _MODEL.to(_DEVICE)
+        except Exception:
+            pass
+
+        _PROCESSOR = AutoProcessor.from_pretrained(WHISPER_MODEL_ID)
+        # Permitir forzar idioma desde la configuración (p. ej. "spanish" o "english").
+        # Si no está presente, no forzamos decoder prompt ids para dejar que el modelo
+        # detecte el idioma automáticamente.
+        forced_lang = config.get("whisper_forced_language")
+        if forced_lang:
+            _FORCED_IDS = _PROCESSOR.get_decoder_prompt_ids(language=forced_lang, task="transcribe")
+        else:
+            _FORCED_IDS = None
+
+            ASR_PIPE = pipeline(
+            "automatic-speech-recognition",
+            model=_MODEL,
+            tokenizer=_PROCESSOR.tokenizer,
+            feature_extractor=_PROCESSOR.feature_extractor,
+            device=_PIPELINE_DEVICE,
+            torch_dtype=_DTYPE,
+                # Solo pasar generate_kwargs si _FORCED_IDS no es None
+                **({"generate_kwargs": {"forced_decoder_ids": _FORCED_IDS}} if _FORCED_IDS is not None else {}),
+        )
+    except Exception as e:
+        ASR_PIPE = None
+        print(f"[WARN] No se pudo inicializar el pipeline ASR: {e}", flush=True)
+else:
+    ASR_PIPE = None
+
+# Diagnóstico breve al inicio
+print(f"[INFO] Entorno Python: {sys.executable}", flush=True)
+print(f"[INFO] torch disponible: {_TORCH_AVAILABLE}", flush=True)
+if _TORCH_AVAILABLE:
+    try:
+        print(f"[INFO] torch.version: {torch.__version__}", flush=True)
+        print(f"[INFO] cuda_available: {torch.cuda.is_available()}", flush=True)
+    except Exception:
+        pass
+print(f"[INFO] dispositivo elegido: {_DEVICE} (pipeline_device={_PIPELINE_DEVICE})", flush=True)
 
 # ════════════════════════════════════════════════
 # Utilidades
@@ -98,6 +164,16 @@ def generar_nombre_base_para_video(titulo_video: str) -> str:
 # ════════════════════════════════════════════════
 
 def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
+    if not keyword or not keyword.strip():
+        print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
+        videos = []
+        for i, vid in enumerate(Channel(channel_url).videos):
+            videos.append({"titulo": vid.title, "yt": vid})
+            if len(videos) >= limite:
+                break
+        print(f"Se seleccionaron {len(videos)} vídeos (ultimos del canal).", flush=True)
+        return videos
+
     print(f"Buscando hasta {limite} vídeos con ‘{keyword}’ en el título…", flush=True)
     videos = []
     for vid in Channel(channel_url).videos:
@@ -124,13 +200,26 @@ def descargar_audio(stream, base_name: str) -> Path | None:
 # Transcripción
 # ════════════════════════════════════════════════
 
-def transcribir_audio(path_audio: Path) -> str:
+def transcribir_audio(path_audio: Path, forced_language: str | None = None) -> str:
+    """Transcribe audio usando ASR_PIPE. Si `forced_language` se proporciona (p.ej. 'english'),
+    se calcula `forced_decoder_ids` localmente y se pasa a generate_kwargs para forzar el idioma.
+    """
     try:
+        generate_kwargs = {}
+        if forced_language and _PROCESSOR is not None:
+            try:
+                forced_ids_local = _PROCESSOR.get_decoder_prompt_ids(language=forced_language, task="transcribe")
+                generate_kwargs = {"forced_decoder_ids": forced_ids_local}
+            except Exception:
+                # Si no se puede obtener forced ids, seguimos sin forzar
+                generate_kwargs = {}
+
         result = ASR_PIPE(
             str(path_audio),
             chunk_length_s=30,
             batch_size=16,
             return_timestamps=False,
+            **({"generate_kwargs": generate_kwargs} if generate_kwargs else {}),
         )
         return result["text"]
     except ValueError:
@@ -142,7 +231,7 @@ def transcribir_audio(path_audio: Path) -> str:
 # Flujo principal
 # ════════════════════════════════════════════════
 
-def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None) -> None:
+def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None, forced_language: str | None = None) -> None:
     """
     Procesa un único vídeo: descarga audio, transcribe, limpia y guarda.
     Si base_name no se proporciona, se genera a partir del título del vídeo.
@@ -171,7 +260,7 @@ def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None) 
 
     print(f"  Iniciando transcripción para: {base} (esto puede tardar)...", flush=True)
     try:
-        texto_transcrito = transcribir_audio(mp3_path)
+        texto_transcrito = transcribir_audio(mp3_path, forced_language=forced_language)
         print(f"  Transcripción completada para: {base}.", flush=True)
         
         texto_limpio = limpiar_texto(texto_transcrito)
@@ -187,8 +276,12 @@ def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None) 
                 print(f"  No se pudo borrar el archivo de audio temporal {mp3_path.name}: {e}", flush=True)
 
 
-def descargar_video_unico(video_url: str) -> None:
-    """Descarga, transcribe y guarda un único vídeo de YouTube."""
+def descargar_video_unico(video_url: str, forced_language: str | None = None) -> None:
+    """Descarga, transcribe y guarda un único vídeo de YouTube.
+
+    Parámetro opcional `forced_language` (p.ej. 'english'|'spanish') para forzar el idioma
+    durante la transcripción.
+    """
     if not video_url:
         print("No se proporcionó URL para vídeo único. Omitiendo.", flush=True)
         return
@@ -196,12 +289,12 @@ def descargar_video_unico(video_url: str) -> None:
     print(f"\nProcesando vídeo único desde URL: {video_url}", flush=True)
     try:
         yt_video = YouTube(video_url)
-        _procesar_video_individual(yt_video)
+        _procesar_video_individual(yt_video, forced_language=forced_language)
     except Exception as e:
         print(f"Error al obtener información del vídeo desde {video_url}: {e}", flush=True)
 
 
-def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3) -> None:
+def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_language: str | None = None) -> None:
     vids = filtrar_videos(channel_url, keyword, limite_videos)
     print(f"\nProcesando {len(vids)} vídeo(s) del canal…", flush=True)
 
@@ -210,7 +303,7 @@ def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3) -> None
         yt_video = info["yt"]
         print(f"\n--- Vídeo {i+1}/{len(vids)} ---")
         try:
-            _procesar_video_individual(yt_video)
+            _procesar_video_individual(yt_video, forced_language=forced_language)
         except Exception as e: 
             print(f"Error general al procesar el vídeo {titulo} del canal: {e}", flush=True)
             continue 

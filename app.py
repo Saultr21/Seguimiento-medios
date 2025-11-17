@@ -30,9 +30,12 @@ async def ejecutar_stream(
     channel_url: str = Form(...),
     channel_keyword: str = Form(...),
     video_limit: int = Form(...),
-    mention_keyword: List[str] = Form(...),
+    # hacer opcional la lista de menciones para soportar 'Solo transcribir'
+    mention_keyword: List[str] = Form([]),
     podcast_limit: int = Form(...),
-    single_video_urls: List[str] = Form([]) 
+    single_video_urls: List[str] = Form([]),
+    only_transcribe: int = Form(0),
+    whisper_language: str = Form("")
 ):
     mention_keywords_str = ",".join(mention_keyword)
     single_video_urls_str = ",".join(filter(None, single_video_urls)) 
@@ -54,7 +57,9 @@ async def ejecutar_stream(
         csv_output_path,
         mention_keywords_str,  
         str(podcast_limit),
-        single_video_urls_str 
+        single_video_urls_str,
+        str(int(bool(only_transcribe)))
+            , whisper_language
     ]
     process = subprocess.Popen(
         cmd,

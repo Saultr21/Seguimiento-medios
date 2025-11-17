@@ -35,8 +35,12 @@ def flujo_completo(
     single_video_urls: List[str],
     transcripciones_dir_str: str,
     json_output_path_str: str,
-    csv_output_path_str: str
+    csv_output_path_str: str,
+    only_transcribe: bool = False,
+    whisper_language: str = "",
 ):
+    # only_transcribe se recibe como parámetro opcional (bool)
+
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
     current_progress = 0
 
@@ -57,10 +61,8 @@ def flujo_completo(
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
     
-    if not channel_keyword and video_limit > 0:
-        print("Error: No se proporcionó la palabra clave para filtrar videos de YouTube y se solicitó procesar videos del canal.", flush=True)
-        print("PROGRESS:100:Flujo terminado con error.", flush=True)
-        return
+    # Si no hay palabra clave, aceptamos y en la función de filtrado se tomarán los últimos videos
+    # (por compatibilidad con la nueva opción de procesar los últimos N del canal).
     
     if video_limit is None or not isinstance(video_limit, int) or video_limit < 0:
         print("Error: El límite de videos no es válido. Debe ser un entero mayor o igual a 0.", flush=True)
@@ -72,7 +74,7 @@ def flujo_completo(
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
     
-    if not single_video_urls and video_limit == 0 and podcast_limit == 0:
+    if not only_transcribe and not single_video_urls and video_limit == 0 and podcast_limit == 0:
         print("Error: No se especificaron URLs de vídeos únicos, ni se configuró la descarga de vídeos de canal o podcasts. Nada que procesar.", flush=True)
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
@@ -95,7 +97,7 @@ def flujo_completo(
                 continue
             print(f"  Procesando vídeo único {i+1}/{num_single_videos}: {video_url}", flush=True)
             try:
-                descargar_video_unico(video_url)
+                descargar_video_unico(video_url, forced_language=whisper_language)
             except Exception as e:
                 print(f"  Error al procesar vídeo único '{video_url}': {e}", flush=True)
         current_progress += 5
@@ -107,7 +109,7 @@ def flujo_completo(
     # Paso 1: Descargar y transcribir vídeos de YouTube
     if video_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1: Descargar y Transcribir Vídeos de YouTube ({channel_keyword}, Límite: {video_limit}) ===", flush=True)
-        subs_whisper(channel_url, channel_keyword, video_limit)
+        subs_whisper(channel_url, channel_keyword, video_limit, forced_language=whisper_language)
         current_progress += 20
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de YouTube completada.", flush=True)
     elif video_limit == 0:
@@ -138,39 +140,55 @@ def flujo_completo(
     print(f"PROGRESS:{current_progress}:Formateo y limpieza completados.", flush=True)
 
 
-    # Paso 2: Extraer contextos con Window-Sliding
-    print(f"\nPROGRESS:{current_progress}:=== Paso 2: Extraer Contextos con Window Sliding ===", flush=True)
-    archivos_transcripcion = list(transcripciones_folder.glob("*.txt"))
-    total_archivos = len(archivos_transcripcion)
-    progreso_ws_base = current_progress
-    progreso_ws_rango = 25
-
-    if total_archivos > 0:
-        for i, filename in enumerate(archivos_transcripcion):
-            progreso_interno_ws = int(((i + 1) / total_archivos) * progreso_ws_rango)
-            print(f"PROGRESS:{progreso_ws_base + progreso_interno_ws}:Procesando archivo de transcripción {i+1}/{total_archivos}: {filename.name}", flush=True)
-            window_sliding_main(
-                input_path=str(filename),
-                json_output_path=str(json_output_path),
-                palabras_clave=mention_keywords
-            )
+    if only_transcribe:
+        # Saltar extracción y análisis
+        print(f"PROGRESS:{current_progress}:Modo 'Solo transcripción' activo. Se omiten extracción de contextos y análisis.", flush=True)
+        current_progress = 95
+        print(f"PROGRESS:{current_progress}:Transcripciones listas.", flush=True)
     else:
-        print("No hay archivos de transcripción para procesar en el Paso 2.", flush=True)
-    current_progress += progreso_ws_rango
-    print(f"PROGRESS:{current_progress}:Extracción de contextos completada.", flush=True)
+        # Paso 2: Extraer contextos con Window-Sliding
+        print(f"\nPROGRESS:{current_progress}:=== Paso 2: Extraer Contextos con Window Sliding ===", flush=True)
+        archivos_transcripcion = list(transcripciones_folder.glob("*.txt"))
+        total_archivos = len(archivos_transcripcion)
+        progreso_ws_base = current_progress
+        progreso_ws_rango = 25
 
-    # Paso 3: Analizar sentimientos/emociones
-    print(f"\nPROGRESS:{current_progress}:=== Paso 3: Analizar Sentimientos ===", flush=True)
-    if Path(json_output_path).exists() and Path(json_output_path).stat().st_size > 0 :
-        analizar_textos(input_file=str(json_output_path), output_file=str(csv_output_path), debug=False)
-    else:
-        print(f"El archivo JSON '{json_output_path}' no existe o está vacío. Omitiendo análisis de sentimientos.", flush=True)
-    current_progress = 95
-    print(f"PROGRESS:{current_progress}:Análisis de sentimientos completado.", flush=True)
+        if total_archivos > 0:
+            for i, filename in enumerate(archivos_transcripcion):
+                progreso_interno_ws = int(((i + 1) / total_archivos) * progreso_ws_rango)
+                print(f"PROGRESS:{progreso_ws_base + progreso_interno_ws}:Procesando archivo de transcripción {i+1}/{total_archivos}: {filename.name}", flush=True)
+                window_sliding_main(
+                    input_path=str(filename),
+                    json_output_path=str(json_output_path),
+                    palabras_clave=mention_keywords
+                )
+        else:
+            print("No hay archivos de transcripción para procesar en el Paso 2.", flush=True)
+        current_progress += progreso_ws_rango
+        print(f"PROGRESS:{current_progress}:Extracción de contextos completada.", flush=True)
+
+        # Paso 3: Analizar sentimientos/emociones
+        print(f"\nPROGRESS:{current_progress}:=== Paso 3: Analizar Sentimientos ===", flush=True)
+        if Path(json_output_path).exists() and Path(json_output_path).stat().st_size > 0 :
+            analizar_textos(input_file=str(json_output_path), output_file=str(csv_output_path), debug=False)
+        else:
+            print(f"El archivo JSON '{json_output_path}' no existe o está vacío. Omitiendo análisis de sentimientos.", flush=True)
+        current_progress = 95
+        print(f"PROGRESS:{current_progress}:Análisis de sentimientos completado.", flush=True)
 
     # Resumen final
     print("\nPROGRESS:100:=== Flujo de Trabajo Completado ===", flush=True)
-    print(f"Resultados guardados en:\n- Fragmentos JSON: {json_output_path}\n- Análisis de Sentimientos CSV: {csv_output_path}", flush=True)
+    if only_transcribe:
+        # En modo solo transcripción no generamos JSON/CSV de análisis
+        print(f"Resultados: transcripciones guardadas en: {transcripciones_folder}", flush=True)
+    else:
+        # Solo notificamos CSV disponible cuando realmente se generó
+        print(f"Resultados guardados en:\n- Fragmentos JSON: {json_output_path}\n- Análisis de Sentimientos CSV: {csv_output_path}", flush=True)
+        # Marcar para frontend que el CSV está listo
+        if Path(csv_output_path).exists() and Path(csv_output_path).stat().st_size > 0:
+            print("CSV_AVAILABLE:1", flush=True)
+        else:
+            print("CSV_AVAILABLE:0", flush=True)
 
 if __name__ == "__main__":
     if len(sys.argv) < 10: # Se esperan 9 argumentos + el nombre del script
@@ -189,6 +207,8 @@ if __name__ == "__main__":
     podcast_limit_arg = int(sys.argv[8])
     single_video_urls_str_arg = sys.argv[9] if len(sys.argv) > 9 and sys.argv[9] else ""
     single_video_urls_list_arg = [url.strip() for url in single_video_urls_str_arg.split(",") if url.strip()] if single_video_urls_str_arg else []
+    only_transcribe_arg = bool(int(sys.argv[10])) if len(sys.argv) > 10 else False
+    whisper_language_arg = sys.argv[11] if len(sys.argv) > 11 else ""
     
     flujo_completo(
         channel_url_arg, 
@@ -200,4 +220,6 @@ if __name__ == "__main__":
         transcripciones_dir_arg, 
         json_output_path_arg,    
         csv_output_path_arg      
+        , only_transcribe=only_transcribe_arg,
+        whisper_language=whisper_language_arg
     )

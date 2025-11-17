@@ -5,3 +5,7 @@ python -m venv venv
 venv\Scripts\activate.bat
 
 
+Error de permisos de acceso
+netstat -ano | Select-String ":8000"
+tasklist /FI "PID eq 4632"
+python -m uvicorn app:app --host 127.0.0.1 --port 8001 --reload --log-level debug
