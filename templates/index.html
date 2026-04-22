@@ -196,7 +196,7 @@
           return; 
         }
 
-        const mentionInputs = form.querySelectorAll('input[name="mention_keyword"]');
+        const mentionInputs = form.querySelectorAll('input[name="mention_keywords"]');
         // Si está marcada la opción 'Solo transcribir', no hace falta rellenar las palabras clave
         if (!onlyTranscribeChecked) {
           let allMentionsFilled = true;
@@ -334,12 +334,12 @@
         const item = document.createElement('div');
         item.className = 'mention-item list-group-item d-flex align-items-center';
         item.innerHTML = `
-          <input type="text" name="mention_keyword" class="form-control me-2"
+          <input type="text" name="mention_keywords" class="form-control me-2"
                  placeholder="Nueva palabra o frase" required>
           <button type="button" class="btn btn-outline-danger btn-sm remove-mention">✕</button>
         `;
         container.appendChild(item);
-        const newInputs = item.querySelectorAll('input[name="mention_keyword"]');
+        const newInputs = item.querySelectorAll('input[name="mention_keywords"]');
         newInputs.forEach(input => {
           input.addEventListener('input', () => {
             if (input.value.trim()) {
