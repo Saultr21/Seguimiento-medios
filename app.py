@@ -22,7 +22,7 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     # Renderizar la plantilla HTML
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html", {"request": request})
 
 
 @app.post("/ejecutar")
@@ -47,7 +47,7 @@ async def ejecutar_stream(
 
     cmd = [
         sys.executable,
-        "-u",                            
+        "-u",            
         "ejecucion.py",
         channel_url,
         channel_keyword,
@@ -55,16 +55,16 @@ async def ejecutar_stream(
         transcripciones_dir,
         json_output_path,
         csv_output_path,
-        mention_keywords_str,  
+        mention_keywords_str,
         str(podcast_limit),
         single_video_urls_str,
-        str(int(bool(only_transcribe)))
-            , whisper_language
+        str(int(bool(only_transcribe))),
+        whisper_language
     ]
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,  
+        stderr=subprocess.STDOUT,
         text=True,
         encoding='utf-8',
         errors='replace',  
