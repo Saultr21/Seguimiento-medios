@@ -92,15 +92,16 @@ if _TORCH_AVAILABLE:
         else:
             _FORCED_IDS = None
 
+            kwargs = {} # kwargs solo tendrá "generate_kwargs" si _FORCED_IDS no es None.
+            if _FORCED_IDS: kwargs["generate_kwargs"] = {"forced_decoder_ids": _FORCED_IDS}
             ASR_PIPE = pipeline(
-            "automatic-speech-recognition",
-            model=_MODEL,
-            tokenizer=_PROCESSOR.tokenizer,
-            feature_extractor=_PROCESSOR.feature_extractor,
-            device=_PIPELINE_DEVICE,
-            torch_dtype=_DTYPE,
-                # Solo pasar generate_kwargs si _FORCED_IDS no es None
-                **({"generate_kwargs": {"forced_decoder_ids": _FORCED_IDS}} if _FORCED_IDS is not None else {}),
+                "automatic-speech-recognition",
+                model=_MODEL,
+                tokenizer=_PROCESSOR.tokenizer,
+                feature_extractor=_PROCESSOR.feature_extractor,
+                device=_PIPELINE_DEVICE,
+                torch_dtype=_DTYPE,
+                **kwargs
         )
     except Exception as e:
         ASR_PIPE = None
@@ -214,12 +215,15 @@ def transcribir_audio(path_audio: Path, forced_language: str | None = None) -> s
                 # Si no se puede obtener forced ids, seguimos sin forzar
                 generate_kwargs = {}
 
+        kwargs = {} # Ponemos el valor de generate_kwargs, si existe.
+        if generate_kwargs: kwargs["generate_kwargs"] = generate_kwargs
         result = ASR_PIPE(
             str(path_audio),
             chunk_length_s=30,
-            batch_size=16,
+            stride_length_s=3,
+            batch_size=4,
             return_timestamps=False,
-            **({"generate_kwargs": generate_kwargs} if generate_kwargs else {}),
+            **kwargs
         )
         return result["text"]
     except ValueError:
