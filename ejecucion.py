@@ -3,10 +3,10 @@ import io
 from pathlib import Path
 import shutil  
 from typing import List
-from descarga_videos_yt import subs_whisper, descargar_video_unico, limpiar_temporales, formatear_transcripciones
-from descarga_podcast_espejocanario import procesar_programas as procesar_podcasts
-from peticion_window_sliding import main as window_sliding_main
-from analisis_pysentimiento_json import analizar_textos  
+from src.data_ingestion.descarga_videos_yt import subs_whisper, descargar_video_unico, limpiar_temporales, formatear_transcripciones
+from src.data_ingestion.descarga_podcast_espejocanario import procesar_programas as procesar_podcasts
+from src.llm.peticion_window_sliding import main as window_sliding_main
+from src.nlp.analisis_pysentimiento_json import analizar_textos  
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')

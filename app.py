@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import List
 import subprocess
 import sys
-from config.cargar_config import cargar_config
+from src.config.cargar_config import cargar_config
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 

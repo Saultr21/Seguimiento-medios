@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seguimiento-medios"
+version = "0.1.0"
+description = "Pipeline de scraping + ASR + chatbot para análisis de sentimiento por términos"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    
+]
