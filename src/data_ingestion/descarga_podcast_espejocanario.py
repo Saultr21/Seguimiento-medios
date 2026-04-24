@@ -19,7 +19,6 @@ config = cargar_config()
 
 AUDIO_DIR = Path(config["audio_dir"])
 TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
-WHISPER_MODEL_ID = config["whisper_model_url"]
 _DEFAULT_PODCAST_LIMIT = 3  
 PODCAST_LIMIT_CONFIG = config.get("podcast_limit", _DEFAULT_PODCAST_LIMIT)
 
@@ -221,8 +220,7 @@ def procesar_programas(cantidad: int) -> None:
         
         print(f"  Iniciando transcripción para: {archivo_path.name} (esto puede tardar)...", flush=True)
         try:
-            result = transcription_model.transcribe(archivo_path, "spanish")
-            texto_transcrito = result["text"]
+            texto_transcrito = transcription_model.transcribe(archivo_path, "spanish")
         except Exception as e:
             print(f"    Error inesperado durante la transcripción de {archivo_path.name}: {e}", flush=True)
             texto_transcrito = None
