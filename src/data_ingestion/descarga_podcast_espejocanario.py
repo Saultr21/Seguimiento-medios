@@ -5,15 +5,10 @@ import warnings
 from pathlib import Path
 from typing import List, Optional
 from src.config.cargar_config import cargar_config
-import torch
+from src.asr.asr_factory import ASRFactory
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp
-from transformers import (
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    pipeline,
-)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -38,27 +33,7 @@ for dir_path in [AUDIO_DIR, TRANSCRIPCIONES_DIR]:
 # ════════════════════════════════════════════════
 # Carga única del modelo Whisper
 # ════════════════════════════════════════════════
-_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
-_DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
-
-_MODEL_PODCAST = AutoModelForSpeechSeq2Seq.from_pretrained(
-    WHISPER_MODEL_ID,
-    torch_dtype=_DTYPE,
-    low_cpu_mem_usage=True,
-    use_safetensors=True,
-).to(_DEVICE)
-_PROCESSOR_PODCAST = AutoProcessor.from_pretrained(WHISPER_MODEL_ID)
-_FORCED_IDS_PODCAST = _PROCESSOR_PODCAST.get_decoder_prompt_ids(language="spanish", task="transcribe")
-
-ASR_PIPE_PODCAST = pipeline(
-    "automatic-speech-recognition",
-    model=_MODEL_PODCAST,
-    tokenizer=_PROCESSOR_PODCAST.tokenizer,
-    feature_extractor=_PROCESSOR_PODCAST.feature_extractor,
-    device=_DEVICE,
-    torch_dtype=_DTYPE,
-    generate_kwargs={"forced_decoder_ids": _FORCED_IDS_PODCAST},
-)
+transcription_model = ASRFactory.load_whisper_asr(config)
 
 # ════════════════════════════════════════════════
 # Utilidades
@@ -222,27 +197,6 @@ def descargar_programas_espejo_canario(cantidad: Optional[int] = None) -> List[P
         return []
 
 # ════════════════════════════════════════════════
-# Transcripción
-# ════════════════════════════════════════════════
-
-def transcribir_audio_podcast(path_audio: Path) -> str:
-    try:
-        result = ASR_PIPE_PODCAST(
-            str(path_audio),
-            chunk_length_s=30,
-            batch_size=16,
-            return_timestamps=False,
-        )
-        return result["text"]
-    except ValueError:
-        print(f"    Error de valor durante transcripción (posiblemente audio muy largo), reintentando con timestamps para {path_audio.name}...", flush=True)
-        result = ASR_PIPE_PODCAST(str(path_audio), return_timestamps=True)
-        return result["text"]
-    except Exception as e:
-        print(f"    Error inesperado durante la transcripción de {path_audio.name}: {e}", flush=True)
-        return ""
-
-# ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
 
@@ -266,7 +220,12 @@ def procesar_programas(cantidad: int) -> None:
         nombre_base_transcripcion = archivo_path.stem
         
         print(f"  Iniciando transcripción para: {archivo_path.name} (esto puede tardar)...", flush=True)
-        texto_transcrito = transcribir_audio_podcast(archivo_path)
+        try:
+            result = transcription_model.transcribe(archivo_path, "spanish")
+            texto_transcrito = result["text"]
+        except Exception as e:
+            print(f"    Error inesperado durante la transcripción de {archivo_path.name}: {e}", flush=True)
+            texto_transcrito = None
         
         if texto_transcrito:
             print(f"  Transcripción completada para: {archivo_path.name}.", flush=True)

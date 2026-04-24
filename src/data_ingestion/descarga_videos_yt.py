@@ -1,24 +1,12 @@
 from __future__ import annotations
 import os
 import re
-import json
 import warnings
 from pathlib import Path
 from typing import List, Dict
 import logging
-import sys
-try:
-    import torch
-    _TORCH_AVAILABLE = True
-except Exception:  # pragma: no cover - entorno puede no tener torch
-    torch = None
-    _TORCH_AVAILABLE = False
+from src.asr.asr_factory import ASRFactory
 from pytubefix import Channel, YouTube
-from transformers import (
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    pipeline,
-)
 
 from src.config.cargar_config import cargar_config
 
@@ -35,95 +23,13 @@ TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
 WHISPER_MODEL_ID = config["whisper_model_url"]
 
 # ════════════════════════════════════════════════
-# Carga única del modelo Whisper (más robusta)
-# - Soporta ausencia de torch
-# - Permite forzar dispositivo con la variable de entorno FORCE_DEVICE
+# Carga del modelo (Whisper o cualquiera).
 # ════════════════════════════════════════════════
-
-# Variable de entorno para forzar dispositivo, por ejemplo: FORCE_DEVICE=cuda:0 o FORCE_DEVICE=cpu
-FORCE_DEVICE = os.getenv("FORCE_DEVICE", "").strip()
-
-def _resolve_device_and_dtype():
-    """Devuelve (device_str, dtype_or_none, pipeline_device_int).
-    pipeline_device_int es -1 para CPU o índice de CUDA (0,1,...)
-    """
-    if not _TORCH_AVAILABLE:
-        return "cpu", None, -1
-
-    # Si se fuerza explícitamente
-    if FORCE_DEVICE:
-        fd = FORCE_DEVICE.lower()
-        if fd in ("cpu", "-1"):
-            return "cpu", torch.float32, -1
-        m = re.match(r"cuda[:]?([0-9]+)?", fd)
-        if m:
-            idx = int(m.group(1)) if m.group(1) is not None else 0
-            # Si torch detecta cuda disponible usamos float16 por ahorro de memoria
-            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-            return f"cuda:{idx}", dtype, idx
-
-    # Detección automática
-    if _TORCH_AVAILABLE and torch.cuda.is_available():
-        return "cuda:0", torch.float16, 0
-    return "cpu", torch.float32, -1
-
-
-_DEVICE, _DTYPE, _PIPELINE_DEVICE = _resolve_device_and_dtype()
-
-if _TORCH_AVAILABLE:
-    try:
-        model_kwargs = {"low_cpu_mem_usage": True, "use_safetensors": True}
-        if _DTYPE is not None:
-            model_kwargs["torch_dtype"] = _DTYPE
-        _MODEL = AutoModelForSpeechSeq2Seq.from_pretrained(WHISPER_MODEL_ID, **model_kwargs)
-        # Intentar mover modelo al dispositivo (si falla, pipeline puede manejarlo)
-        try:
-            _MODEL = _MODEL.to(_DEVICE)
-        except Exception:
-            pass
-
-        _PROCESSOR = AutoProcessor.from_pretrained(WHISPER_MODEL_ID)
-        # Permitir forzar idioma desde la configuración (p. ej. "spanish" o "english").
-        # Si no está presente, no forzamos decoder prompt ids para dejar que el modelo
-        # detecte el idioma automáticamente.
-        forced_lang = config.get("whisper_forced_language")
-        if forced_lang:
-            _FORCED_IDS = _PROCESSOR.get_decoder_prompt_ids(language=forced_lang, task="transcribe")
-        else:
-            _FORCED_IDS = None
-
-            kwargs = {} # kwargs solo tendrá "generate_kwargs" si _FORCED_IDS no es None.
-            if _FORCED_IDS: kwargs["generate_kwargs"] = {"forced_decoder_ids": _FORCED_IDS}
-            ASR_PIPE = pipeline(
-                "automatic-speech-recognition",
-                model=_MODEL,
-                tokenizer=_PROCESSOR.tokenizer,
-                feature_extractor=_PROCESSOR.feature_extractor,
-                device=_PIPELINE_DEVICE,
-                torch_dtype=_DTYPE,
-                **kwargs
-            )
-    except Exception as e:
-        ASR_PIPE = None
-        print(f"[WARN] No se pudo inicializar el pipeline ASR: {e}", flush=True)
-else:
-    ASR_PIPE = None
-
-# Diagnóstico breve al inicio
-print(f"[INFO] Entorno Python: {sys.executable}", flush=True)
-print(f"[INFO] torch disponible: {_TORCH_AVAILABLE}", flush=True)
-if _TORCH_AVAILABLE:
-    try:
-        print(f"[INFO] torch.version: {torch.__version__}", flush=True)
-        print(f"[INFO] cuda_available: {torch.cuda.is_available()}", flush=True)
-    except Exception:
-        pass
-print(f"[INFO] dispositivo elegido: {_DEVICE} (pipeline_device={_PIPELINE_DEVICE})", flush=True)
+transcription_model = ASRFactory.load_whisper_asr(config)
 
 # ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-
 def limpiar_texto(texto: str) -> str:
     """Normaliza transcripciones eliminando saltos y marcas."""
     texto = re.sub(r"\[.*?\]", "", texto)
@@ -163,7 +69,6 @@ def generar_nombre_base_para_video(titulo_video: str) -> str:
 # ════════════════════════════════════════════════
 # YouTube helpers
 # ════════════════════════════════════════════════
-
 def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
     if not keyword or not keyword.strip():
         print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
@@ -198,40 +103,6 @@ def descargar_audio(stream, base_name: str) -> Path | None:
         return None
 
 # ════════════════════════════════════════════════
-# Transcripción
-# ════════════════════════════════════════════════
-
-def transcribir_audio(path_audio: Path, forced_language: str | None = None) -> str:
-    """Transcribe audio usando ASR_PIPE. Si `forced_language` se proporciona (p.ej. 'english'),
-    se calcula `forced_decoder_ids` localmente y se pasa a generate_kwargs para forzar el idioma.
-    """
-    try:
-        generate_kwargs = {}
-        if forced_language and _PROCESSOR is not None:
-            try:
-                forced_ids_local = _PROCESSOR.get_decoder_prompt_ids(language=forced_language, task="transcribe")
-                generate_kwargs = {"forced_decoder_ids": forced_ids_local}
-            except Exception:
-                # Si no se puede obtener forced ids, seguimos sin forzar
-                generate_kwargs = {}
-
-        kwargs = {} # Ponemos el valor de generate_kwargs, si existe.
-        if generate_kwargs: kwargs["generate_kwargs"] = generate_kwargs
-        result = ASR_PIPE(
-            str(path_audio),
-            chunk_length_s=30,
-            stride_length_s=3,
-            batch_size=4,
-            return_timestamps=False,
-            **kwargs
-        )
-        return result["text"]
-    except ValueError:
-        # Reintenta con timestamps si sigue siendo muy largo
-        result = ASR_PIPE(str(path_audio), return_timestamps=True)
-        return result["text"]
-
-# ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
 
@@ -264,7 +135,7 @@ def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None, 
 
     print(f"  Iniciando transcripción para: {base} (esto puede tardar)...", flush=True)
     try:
-        texto_transcrito = transcribir_audio(mp3_path, forced_language=forced_language)
+        texto_transcrito = transcription_model.transcribe(mp3_path, audio_language=forced_language)
         print(f"  Transcripción completada para: {base}.", flush=True)
         
         texto_limpio = limpiar_texto(texto_transcrito)
