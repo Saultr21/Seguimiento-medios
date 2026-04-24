@@ -1,10 +1,19 @@
 import json
-from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def cargar_config(ruta_config: str = "./src/config/config.json") -> dict:
-    """Carga el archivo de configuración JSON."""
-    config_path = Path(ruta_config)
-    if not config_path.exists():
-        raise FileNotFoundError(f"No se encontró el archivo de configuración: {ruta_config}")
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Carga el archivo de configuración en ".env"."""
+
+    return {
+        "audio_dir": os.getenv("AUDIOS_DIR"),
+        "transcripciones_dir": os.getenv("TRANSCRIPTIONS_DIR"),
+        "json_output_path": os.getenv("JSON_OUTPUT_PATH"),
+        "csv_output_path": os.getenv("CSV_OUTPUT_PATH"),
+        "whisper_model_url": os.getenv("WHISPER_MODEL_URL"),
+        "llm_url": os.getenv("LLM_URL"),
+        "llm_model": os.getenv("LLM_MODEL"),
+        "podcast_limit": int(os.getenv("PODCAST_LIMIT"))
+    }
