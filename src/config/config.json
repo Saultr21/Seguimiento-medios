@@ -4,6 +4,7 @@
     "json_output_path": "fragmentos.json",
     "csv_output_path": "analisis_textos_json.csv",
     "whisper_model_url": "openai/whisper-large-v3-turbo",
-    "llm_url": "http://192.168.1.60:1234/v1/chat/completions",
+    "llm_url": "http://localhost:11434/v1/chat/completions",
+    "llm_model": "gemma4:e2b",
     "podcast_limit": 1
 }

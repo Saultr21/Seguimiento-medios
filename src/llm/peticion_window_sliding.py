@@ -114,7 +114,7 @@ def procesar_archivo(input_path, palabras_clave, json_output_path, contexto=500)
     config = cargar_config()
     url = config["llm_url"]
     headers = {"Content-Type": "application/json"}
-    model = "gemma-3-12b-it-qat"
+    model = config["llm_model"]
 
     palabras_clave_str = ", ".join(palabras_clave)
     system_prompt = (
