@@ -1,10 +1,9 @@
-import json
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-def cargar_config(ruta_config: str = "./src/config/config.json") -> dict:
+def cargar_config() -> dict:
     """Carga el archivo de configuración en ".env"."""
 
     return {
