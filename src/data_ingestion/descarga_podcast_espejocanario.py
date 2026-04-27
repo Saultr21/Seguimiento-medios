@@ -5,6 +5,7 @@ import warnings
 from pathlib import Path
 from typing import List, Optional
 from src.config.cargar_config import cargar_config
+from src.utils.text_utils import limpiar_texto
 from src.asr.asr_factory import ASRFactory
 import requests
 from bs4 import BeautifulSoup
@@ -37,17 +38,6 @@ transcription_model = ASRFactory.load_whisper_asr(config)
 # ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-
-def limpiar_texto_podcast(texto: str) -> str:
-    """Normaliza transcripciones eliminando saltos y marcas."""
-    texto = re.sub(r"\[.*?\]", "", texto)
-    texto = re.sub(r"\n+", "\n", texto.strip())
-    texto = re.sub(r"(\w)\n(\w)", r"\1 \2", texto)
-    texto = re.sub(r"\s+([.,;!?])", r"\1", texto)
-    texto = re.sub(r"\.{3,}", " ", texto)
-    return texto
-
-
 def guarda_transcripcion_podcast(nombre_base: str, texto: str) -> None:
     path = TRANSCRIPCIONES_DIR / f"podcast_{nombre_base}.txt"
     path.write_text(texto, encoding="utf-8")
@@ -227,7 +217,7 @@ def procesar_programas(cantidad: int) -> None:
         
         if texto_transcrito:
             print(f"  Transcripción completada para: {archivo_path.name}.", flush=True)
-            texto_limpio = limpiar_texto_podcast(texto_transcrito)
+            texto_limpio = limpiar_texto(texto_transcrito)
             guarda_transcripcion_podcast(nombre_base_transcripcion, texto_limpio)
         else:
             print(f"  No se generó transcripción para {archivo_path.name} o la transcripción está vacía.", flush=True)

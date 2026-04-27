@@ -19,7 +19,7 @@ class _WhisperASR(BaseASR):
         try:
             model_kwargs = {"low_cpu_mem_usage": True, "use_safetensors": True}
             if _DTYPE is not None:
-                model_kwargs["torch_dtype"] = _DTYPE
+                model_kwargs["dtype"] = _DTYPE
             _MODEL = AutoModelForSpeechSeq2Seq.from_pretrained(WHISPER_MODEL_ID, **model_kwargs)
 
             # Intentar mover modelo al dispositivo (si falla, pipeline puede manejarlo).
@@ -37,7 +37,7 @@ class _WhisperASR(BaseASR):
                 tokenizer=_PROCESSOR.tokenizer,
                 feature_extractor=_PROCESSOR.feature_extractor,
                 device=_PIPELINE_DEVICE,
-                torch_dtype=_DTYPE
+                dtype=_DTYPE
             )
 
             print(f"[INFO] torch.version: {torch.__version__}", flush=True)

@@ -80,7 +80,7 @@ async def ejecutar_stream(
             yield line                        
         rc = process.wait()
         yield f"\nProceso terminado con código: {rc}\n"
-        yield f"Tiempo para ejecución: {start_time - time.time()}s\n"
+        yield f"Tiempo para ejecución: {time.time() - start_time}s\n"
 
     return StreamingResponse(log_generator(), media_type="text/plain")
 

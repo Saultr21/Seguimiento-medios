@@ -3,7 +3,11 @@ import io
 from pathlib import Path
 import shutil  
 from typing import List
+
+from src.config.cargar_config import cargar_config
 from src.data_ingestion.descarga_videos_yt import subs_whisper, descargar_video_unico, limpiar_temporales, formatear_transcripciones
+from src.services.transcription_service import TranscriptionService
+from src.asr.asr_factory import ASRFactory
 from src.data_ingestion.descarga_podcast_espejocanario import procesar_programas as procesar_podcasts
 from src.llm.peticion_window_sliding import main as window_sliding_main
 from src.nlp.analisis_pysentimiento_json import analizar_textos  
@@ -55,6 +59,13 @@ def flujo_completo(
 
     limpiar_carpeta(transcripciones_folder)
     transcripciones_folder.mkdir(parents=True, exist_ok=True)
+
+    # ════════════════════════════════════════════════
+    # Carga del modelo de transcripción (Whisper o cualquiera).
+    # ════════════════════════════════════════════════
+    config = cargar_config()
+    transcription_model = ASRFactory.load_whisper_asr(config)
+    transcription_service = TranscriptionService(str(transcripciones_folder), transcription_model)
     
     if not channel_url and video_limit > 0:
         print("Error: No se proporcionó la URL del canal de YouTube y se solicitó procesar videos del canal.", flush=True)
@@ -97,7 +108,8 @@ def flujo_completo(
                 continue
             print(f"  Procesando vídeo único {i+1}/{num_single_videos}: {video_url}", flush=True)
             try:
-                descargar_video_unico(video_url, forced_language=whisper_language)
+                base_name, mp3_path = descargar_video_unico(video_url)
+                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
             except Exception as e:
                 print(f"  Error al procesar vídeo único '{video_url}': {e}", flush=True)
         current_progress += 5

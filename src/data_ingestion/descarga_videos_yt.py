@@ -5,7 +5,6 @@ import warnings
 from pathlib import Path
 from typing import List, Dict
 import logging
-from src.asr.asr_factory import ASRFactory
 from pytubefix import Channel, YouTube
 
 from src.config.cargar_config import cargar_config
@@ -23,27 +22,8 @@ TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
 WHISPER_MODEL_ID = config["whisper_model_url"]
 
 # ════════════════════════════════════════════════
-# Carga del modelo (Whisper o cualquiera).
-# ════════════════════════════════════════════════
-transcription_model = ASRFactory.load_whisper_asr(config)
-
-# ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-def limpiar_texto(texto: str) -> str:
-    """Normaliza transcripciones eliminando saltos y marcas."""
-    texto = re.sub(r"\[.*?\]", "", texto)
-    texto = re.sub(r"\n+", "\n", texto.strip())
-    texto = re.sub(r"(\w)\n(\w)", r"\1 \2", texto)
-    texto = re.sub(r"\s+([.,;!?])", r"\1", texto)
-    texto = re.sub(r"\.{3,}", " ", texto)
-    return texto
-
-def guarda_transcripcion(nombre: str, texto: str) -> None:
-    path = TRANSCRIPCIONES_DIR / f"{nombre}.txt"
-    path.write_text(texto, encoding="utf-8")
-    print(f"Transcripción guardada en: {path}", flush=True)
-
 def limpiar_temporales() -> None:
     for f in AUDIO_DIR.glob("tmp_*.mp3"):
         try:
@@ -92,69 +72,29 @@ def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
 
 def descargar_audio(stream, base_name: str) -> Path | None:
     if stream is None:
-        return None
+        return
+    
     tmp_name = f"tmp_{base_name}.mp3"
-    out_path = AUDIO_DIR / tmp_name
+    out_path = AUDIO_DIR / f"{tmp_name}"
+
     try:
         stream.download(output_path=AUDIO_DIR, filename=tmp_name)
         return out_path
     except Exception as e:  
         print(f"Error al descargar audio: {e}")
-        return None
+        return
 
 # ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
-def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None, forced_language: str | None = None) -> None:
+def descargar_video_unico(video_url: str) -> None:
     """
-    Procesa un único vídeo: descarga audio, transcribe, limpia y guarda.
-    Si base_name no se proporciona, se genera a partir del título del vídeo.
-    """
-    titulo = yt_video.title
-    print(f"  Procesando vídeo: {titulo}", flush=True)
-
-    base = base_name or generar_nombre_base_para_video(titulo)
-    print(f"  Nombre base para archivos: {base}", flush=True)
-
-    path_transcripcion_existente = TRANSCRIPCIONES_DIR / f"{base}.txt"
-    if path_transcripcion_existente.exists():
-        print(f"  La transcripción para '{base}' ya existe. Omitiendo.", flush=True)
-        return
-
-    audio_stream = yt_video.streams.filter(only_audio=True).first()
-    if not audio_stream:
-        print(f"  No se encontró stream de audio para el vídeo: {titulo}. Se omite.", flush=True)
-        return
-
-    mp3_path = descargar_audio(audio_stream, base)
-
-    if mp3_path is None:
-        print(f"  Vídeo '{titulo}' sin audio o error de descarga; se omite.", flush=True)
-        return
-
-    print(f"  Iniciando transcripción para: {base} (esto puede tardar)...", flush=True)
-    try:
-        texto_transcrito = transcription_model.transcribe(mp3_path, audio_language=forced_language)
-        print(f"  Transcripción completada para: {base}.", flush=True)
-        
-        texto_limpio = limpiar_texto(texto_transcrito)
-        guarda_transcripcion(base, texto_limpio)
-    except Exception as e:
-        print(f"  Error durante la transcripción del vídeo {titulo}: {e}", flush=True)
-    finally:
-        if mp3_path and mp3_path.exists():
-            try:
-                mp3_path.unlink()
-                print(f"  Archivo de audio temporal '{mp3_path.name}' eliminado.", flush=True)
-            except Exception as e:
-                print(f"  No se pudo borrar el archivo de audio temporal {mp3_path.name}: {e}", flush=True)
-
-def descargar_video_unico(video_url: str, forced_language: str | None = None) -> None:
-    """Descarga, transcribe y guarda un único vídeo de YouTube.
+    Descarga, transcribe y guarda un único vídeo de YouTube.
 
     Parámetro opcional `forced_language` (p.ej. 'english'|'spanish') para forzar el idioma
     durante la transcripción.
     """
+
     if not video_url:
         print("No se proporcionó URL para vídeo único. Omitiendo.", flush=True)
         return None
@@ -162,10 +102,35 @@ def descargar_video_unico(video_url: str, forced_language: str | None = None) ->
     print(f"\nProcesando vídeo único desde URL: {video_url}", flush=True)
     try:
         yt_video = YouTube(video_url)
-        _procesar_video_individual(yt_video, forced_language=forced_language)
+        titulo = yt_video.title
+        
+        print(f"  Procesando vídeo: {titulo}", flush=True)
+        base_name = generar_nombre_base_para_video(titulo)
+        print(f"  Nombre base para archivos: {base_name}", flush=True)
+
+        path_transcripcion_existente = TRANSCRIPCIONES_DIR / f"{base_name}.txt"
+        if path_transcripcion_existente.exists():
+            print(f"  La transcripción para '{base_name}' ya existe. Omitiendo.", flush=True)
+            return
+
+        audio_stream = yt_video.streams.filter(only_audio=True).first()
+        if not audio_stream:
+            print(f"  No se encontró stream de audio para el vídeo: {titulo}. Se omite.", flush=True)
+            return
+
+        mp3_path = descargar_audio(audio_stream, base_name)
+
+        if mp3_path is None:
+            print(f"  Vídeo '{titulo}' sin audio o error de descarga; se omite.", flush=True)
+            return
+
+        return base_name, mp3_path
+
+        # _procesar_video_individual(yt_video, forced_language=forced_language)
+
     except Exception as e:
-        print(f"Error al obtener información del vídeo desde {video_url}: {e}", flush=True)
-        return None
+        print(f"Error al obtener información del vídeo desde {mp3_path}: {e}", flush=True)
+        return
 
 
 def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_language: str | None = None) -> None:
@@ -177,7 +142,8 @@ def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_
         yt_video = info["yt"]
         print(f"\n--- Vídeo {i+1}/{len(vids)} ---")
         try:
-            _procesar_video_individual(yt_video, forced_language=forced_language)
+            pass
+            # _procesar_video_individual(yt_video, forced_language=forced_language)
         except Exception as e: 
             print(f"Error general al procesar el vídeo {titulo} del canal: {e}", flush=True)
             continue 
@@ -185,14 +151,6 @@ def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_
 # ════════════════════════════════════════════════
 # Renombrado y formateo de .txt existentes 
 # ════════════════════════════════════════════════
-
-def renombrar_txt_antiguo(nombre_antiguo: str, nombre_nuevo: str):
-    orig = TRANSCRIPCIONES_DIR / f"{nombre_antiguo}.txt"
-    dest = TRANSCRIPCIONES_DIR / f"{nombre_nuevo}.txt"
-    if orig.exists() and not dest.exists():
-        orig.rename(dest)
-        print(f"Renombrado: {orig} -> {dest}", flush=True)
-
 def formatear_transcripciones(dry_run: bool = False):
     patron = re.compile(
         r"^Telenoticias\s+(?P<num>\d{1,3})\s+(?P<fecha>\d{6})\.txt$",
