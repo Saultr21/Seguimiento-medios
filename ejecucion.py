@@ -5,7 +5,7 @@ import shutil
 from typing import List
 
 from src.config.cargar_config import cargar_config
-from src.data_ingestion.descarga_videos_yt import subs_whisper, descargar_video_unico, limpiar_temporales, formatear_transcripciones
+from src.data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video, limpiar_temporales, formatear_transcripciones
 from src.services.transcription_service import TranscriptionService
 from src.asr.asr_factory import ASRFactory
 from src.data_ingestion.descarga_podcast_espejocanario import procesar_programas as procesar_podcasts
@@ -106,12 +106,14 @@ def flujo_completo(
             if not video_url.strip():
                 print(f"  URL de vídeo único vacía omitida (índice {i+1}).", flush=True)
                 continue
+
             print(f"  Procesando vídeo único {i+1}/{num_single_videos}: {video_url}", flush=True)
             try:
-                base_name, mp3_path = descargar_video_unico(video_url)
-                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
+                base_name, mp3_path = download_yt_video(video_url)
+                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)    
             except Exception as e:
-                print(f"  Error al procesar vídeo único '{video_url}': {e}", flush=True)
+                print(f"  Error al procesar vídeo único '{base_name}': {e}", flush=True)
+            
         current_progress += 5
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de vídeos únicos completada (o intentada).", flush=True)
     else:
@@ -121,7 +123,12 @@ def flujo_completo(
     # Paso 1: Descargar y transcribir vídeos de YouTube
     if video_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1: Descargar y Transcribir Vídeos de YouTube ({channel_keyword}, Límite: {video_limit}) ===", flush=True)
-        subs_whisper(channel_url, channel_keyword, video_limit, forced_language=whisper_language)
+        downloaded_videos = download_videos_from_channel(channel_url, channel_keyword, video_limit, forced_language=whisper_language)
+
+        for video in downloaded_videos:
+            base_name, video_path = video['name'], video['path']
+            transcription_service.transcribe_audio(base_name, mp3_path)
+
         current_progress += 20
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de YouTube completada.", flush=True)
     elif video_limit == 0:

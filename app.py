@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
-from typing import List
+from typing import List, Optional
 from src.config.cargar_config import cargar_config
 import subprocess
 import sys
@@ -29,7 +29,7 @@ async def read_root(request: Request):
 @app.post("/ejecutar")
 async def ejecutar_stream(
     channel_url: str = Form(...),
-    channel_keyword: str = Form(...),
+    channel_keyword: Optional[str] = Form(""),
     video_limit: int = Form(...),
     # hacer opcional la lista de menciones para soportar 'Solo transcribir'
     mention_keywords: List[str] = Form([]),

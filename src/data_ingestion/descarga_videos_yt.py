@@ -50,25 +50,30 @@ def generar_nombre_base_para_video(titulo_video: str) -> str:
 # YouTube helpers
 # ════════════════════════════════════════════════
 def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
-    if not keyword or not keyword.strip():
+    if not keyword or len(keyword.strip()) == 0:
         print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
-        videos = []
+        selected_videos = []
         for i, vid in enumerate(Channel(channel_url).videos):
-            videos.append({"titulo": vid.title, "yt": vid})
-            if len(videos) >= limite:
+            selected_videos.append({"titulo": vid.title, "yt": vid})
+            if len(selected_videos) >= limite:
                 break
-        print(f"Se seleccionaron {len(videos)} vídeos (ultimos del canal).", flush=True)
-        return videos
+        print(f"Se seleccionaron {len(selected_videos)} vídeos (ultimos del canal).", flush=True)
+        return selected_videos
 
     print(f"Buscando hasta {limite} vídeos con ‘{keyword}’ en el título…", flush=True)
-    videos = []
-    for vid in Channel(channel_url).videos:
+    
+    selected_videos = []
+    for i, vid in enumerate(Channel(channel_url).videos):
         if keyword.lower() in vid.title.lower():
-            videos.append({"titulo": vid.title, "yt": vid})
-            if len(videos) >= limite:
+            selected_videos.append({"titulo": vid.title, "yt": vid})
+            if len(selected_videos) >= limite:
                 break
-    print(f"Se encontraron {len(videos)} vídeos.", flush=True)
-    return videos
+        
+        if i >= 99: # Máximo de 100 vídeos revisados.
+            break
+    
+    print(f"Se encontraron {len(selected_videos)} vídeos.", flush=True)
+    return selected_videos
 
 def descargar_audio(stream, base_name: str) -> Path | None:
     if stream is None:
@@ -87,12 +92,9 @@ def descargar_audio(stream, base_name: str) -> Path | None:
 # ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
-def descargar_video_unico(video_url: str) -> None:
+def download_yt_video(video_url: str) -> None:
     """
-    Descarga, transcribe y guarda un único vídeo de YouTube.
-
-    Parámetro opcional `forced_language` (p.ej. 'english'|'spanish') para forzar el idioma
-    durante la transcripción.
+    Descarga un único vídeo de YouTube, especificado en el parámetro `video_url`.
     """
 
     if not video_url:
@@ -126,27 +128,30 @@ def descargar_video_unico(video_url: str) -> None:
 
         return base_name, mp3_path
 
-        # _procesar_video_individual(yt_video, forced_language=forced_language)
-
     except Exception as e:
         print(f"Error al obtener información del vídeo desde {mp3_path}: {e}", flush=True)
         return
 
 
-def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_language: str | None = None) -> None:
+def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: int = 3) -> None:
     vids = filtrar_videos(channel_url, keyword, limite_videos)
     print(f"\nProcesando {len(vids)} vídeo(s) del canal…", flush=True)
 
-    for i, info in enumerate(vids):
-        titulo = info["titulo"]
-        yt_video = info["yt"]
+    downloaded_videos = []
+    for i, vid_info in enumerate(vids):
+        titulo = vid_info["titulo"]
+        yt_video: YouTube = vid_info["yt"]
+        
         print(f"\n--- Vídeo {i+1}/{len(vids)} ---")
         try:
-            pass
-            # _procesar_video_individual(yt_video, forced_language=forced_language)
+            print(yt_video)
+            base_name, mp3_path = download_yt_video(yt_video)
+            downloaded_videos.append({"name": base_name, "path": mp3_path})
         except Exception as e: 
             print(f"Error general al procesar el vídeo {titulo} del canal: {e}", flush=True)
-            continue 
+            continue
+    
+    return downloaded_videos
 
 # ════════════════════════════════════════════════
 # Renombrado y formateo de .txt existentes 
@@ -186,6 +191,6 @@ if __name__ == "__main__":
     URL_CANAL = config["youtube_channel_url"]
     PALABRA = config["youtube_keyword"]
     LIMITE = config["video_limit"]
-    subs_whisper(URL_CANAL, PALABRA, LIMITE)
+    download_videos_from_channel(URL_CANAL, PALABRA, LIMITE)
     formatear_transcripciones()
     limpiar_temporales()
