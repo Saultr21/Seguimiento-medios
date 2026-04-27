@@ -105,7 +105,6 @@ def descargar_audio(stream, base_name: str) -> Path | None:
 # ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
-
 def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None, forced_language: str | None = None) -> None:
     """
     Procesa un único vídeo: descarga audio, transcribe, limpia y guarda.
@@ -150,7 +149,6 @@ def _procesar_video_individual(yt_video: YouTube, base_name: str | None = None, 
             except Exception as e:
                 print(f"  No se pudo borrar el archivo de audio temporal {mp3_path.name}: {e}", flush=True)
 
-
 def descargar_video_unico(video_url: str, forced_language: str | None = None) -> None:
     """Descarga, transcribe y guarda un único vídeo de YouTube.
 
@@ -159,7 +157,7 @@ def descargar_video_unico(video_url: str, forced_language: str | None = None) ->
     """
     if not video_url:
         print("No se proporcionó URL para vídeo único. Omitiendo.", flush=True)
-        return
+        return None
 
     print(f"\nProcesando vídeo único desde URL: {video_url}", flush=True)
     try:
@@ -167,6 +165,7 @@ def descargar_video_unico(video_url: str, forced_language: str | None = None) ->
         _procesar_video_individual(yt_video, forced_language=forced_language)
     except Exception as e:
         print(f"Error al obtener información del vídeo desde {video_url}: {e}", flush=True)
+        return None
 
 
 def subs_whisper(channel_url: str, keyword: str, limite_videos: int = 3, forced_language: str | None = None) -> None:
@@ -199,20 +198,24 @@ def formatear_transcripciones(dry_run: bool = False):
         r"^Telenoticias\s+(?P<num>\d{1,3})\s+(?P<fecha>\d{6})\.txt$",
         re.IGNORECASE,
     )
+
     cambios = 0
     for archivo in TRANSCRIPCIONES_DIR.glob("*.txt"):
         m = patron.match(archivo.name)
         if not m:
             continue
+
         num, fecha = m.group("num"), m.group("fecha")
         nuevo = TRANSCRIPCIONES_DIR / f"Telenoticias{num}.{fecha[4:6]}-{fecha[2:4]}-{fecha[0:2]}.txt"
         if nuevo.exists():
             print(f"Ya existe {nuevo.name}, omitiendo.", flush=True)
             continue
+
         print(f"{archivo.name} -> {nuevo.name}", flush=True)
         if not dry_run:
             archivo.rename(nuevo)
             cambios += 1
+        
     if not dry_run:
         print("Renombrados", cambios, "archivo(s).", flush=True)
 

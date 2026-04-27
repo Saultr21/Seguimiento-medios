@@ -4,10 +4,12 @@ from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from typing import List
+from src.config.cargar_config import cargar_config
 import subprocess
 import sys
-from src.config.cargar_config import cargar_config
 import io
+import time
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Cargar configuración
@@ -44,6 +46,7 @@ async def ejecutar_stream(
     json_output_path = config["json_output_path"]
     csv_output_path = config["csv_output_path"]
 
+    start_time = time.time()
     cmd = [
         sys.executable,
         "-u",            
@@ -77,6 +80,7 @@ async def ejecutar_stream(
             yield line                        
         rc = process.wait()
         yield f"\nProceso terminado con código: {rc}\n"
+        yield f"Tiempo para ejecución: {start_time - time.time()}s\n"
 
     return StreamingResponse(log_generator(), media_type="text/plain")
 
