@@ -9,6 +9,7 @@ import subprocess
 import sys
 import io
 import time
+import uvicorn
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -90,3 +91,6 @@ async def descargar_csv():
     # Asegúrate de que el nombre del archivo para la descarga sea el deseado.
     # Podrías extraer el nombre del archivo de csv_path si es necesario.
     return FileResponse(path=csv_path, media_type='text/csv', filename="analisis_sentimientos.csv")
+
+def run():
+    uvicorn.run(app)
