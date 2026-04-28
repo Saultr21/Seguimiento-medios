@@ -29,7 +29,6 @@ def limpiar_carpeta(ruta_carpeta: Path):
     elif not ruta_carpeta.exists():
         ruta_carpeta.mkdir(parents=True, exist_ok=True)
 
-
 def flujo_completo(
     channel_url: str, 
     channel_keyword: str, 
@@ -101,33 +100,33 @@ def flujo_completo(
     # Paso Adicional: Descargar y transcribir vídeos únicos (si se proporcionan)
     if single_video_urls:
         print(f"\nPROGRESS:{current_progress}:=== Paso Adicional: Descargar y Transcribir Vídeos Únicos ===", flush=True)
-        num_single_videos = len(single_video_urls)
+        
         for i, video_url in enumerate(single_video_urls):
             if not video_url.strip():
                 print(f"  URL de vídeo único vacía omitida (índice {i+1}).", flush=True)
                 continue
 
-            print(f"  Procesando vídeo único {i+1}/{num_single_videos}: {video_url}", flush=True)
+            print(f"  Procesando vídeo único {i+1}/{ len(single_video_urls) }: {video_url}", flush=True)
             try:
                 base_name, mp3_path = download_yt_video(video_url)
                 transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)    
             except Exception as e:
                 print(f"  Error al procesar vídeo único '{base_name}': {e}", flush=True)
-            
+        
         current_progress += 5
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de vídeos únicos completada (o intentada).", flush=True)
+
     else:
         print(f"PROGRESS:{current_progress}:No se proporcionaron URLs de vídeos únicos, omitiendo este paso.", flush=True)
-
 
     # Paso 1: Descargar y transcribir vídeos de YouTube
     if video_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1: Descargar y Transcribir Vídeos de YouTube ({channel_keyword}, Límite: {video_limit}) ===", flush=True)
-        downloaded_videos = download_videos_from_channel(channel_url, channel_keyword, video_limit, forced_language=whisper_language)
+        downloaded_videos = download_videos_from_channel(channel_url, channel_keyword, video_limit)
 
         for video in downloaded_videos:
             base_name, video_path = video['name'], video['path']
-            transcription_service.transcribe_audio(base_name, mp3_path)
+            transcription_service.transcribe_audio(base_name, video_path)
 
         current_progress += 20
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de YouTube completada.", flush=True)

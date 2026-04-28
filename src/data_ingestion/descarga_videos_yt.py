@@ -54,7 +54,7 @@ def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
         print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
         selected_videos = []
         for i, vid in enumerate(Channel(channel_url).videos):
-            selected_videos.append({"titulo": vid.title, "yt": vid})
+            selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
             if len(selected_videos) >= limite:
                 break
         print(f"Se seleccionaron {len(selected_videos)} vídeos (ultimos del canal).", flush=True)
@@ -65,7 +65,7 @@ def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
     selected_videos = []
     for i, vid in enumerate(Channel(channel_url).videos):
         if keyword.lower() in vid.title.lower():
-            selected_videos.append({"titulo": vid.title, "yt": vid})
+            selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
             if len(selected_videos) >= limite:
                 break
         
@@ -106,14 +106,14 @@ def download_yt_video(video_url: str) -> None:
         yt_video = YouTube(video_url)
         titulo = yt_video.title
         
-        print(f"  Procesando vídeo: {titulo}", flush=True)
         base_name = generar_nombre_base_para_video(titulo)
+        print(f"  Procesando vídeo: {titulo}", flush=True)
         print(f"  Nombre base para archivos: {base_name}", flush=True)
 
         path_transcripcion_existente = TRANSCRIPCIONES_DIR / f"{base_name}.txt"
         if path_transcripcion_existente.exists():
             print(f"  La transcripción para '{base_name}' ya existe. Omitiendo.", flush=True)
-            return
+            return base_name, mp3_path
 
         audio_stream = yt_video.streams.filter(only_audio=True).first()
         if not audio_stream:
@@ -133,19 +133,18 @@ def download_yt_video(video_url: str) -> None:
         return
 
 
-def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: int = 3) -> None:
+def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: int = 3):
     vids = filtrar_videos(channel_url, keyword, limite_videos)
     print(f"\nProcesando {len(vids)} vídeo(s) del canal…", flush=True)
 
     downloaded_videos = []
-    for i, vid_info in enumerate(vids):
-        titulo = vid_info["titulo"]
-        yt_video: YouTube = vid_info["yt"]
+    for i, vid in enumerate(vids):
+        titulo = vid["titulo"]
+        video_url = vid["video_url"]
         
         print(f"\n--- Vídeo {i+1}/{len(vids)} ---")
         try:
-            print(yt_video)
-            base_name, mp3_path = download_yt_video(yt_video)
+            base_name, mp3_path = download_yt_video(video_url)
             downloaded_videos.append({"name": base_name, "path": mp3_path})
         except Exception as e: 
             print(f"Error general al procesar el vídeo {titulo} del canal: {e}", flush=True)
