@@ -38,19 +38,6 @@ transcription_model = ASRFactory.load_whisper_asr(config)
 # ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-def guarda_transcripcion_podcast(nombre_base: str, texto: str) -> None:
-    path = TRANSCRIPCIONES_DIR / f"podcast_{nombre_base}.txt"
-    path.write_text(texto, encoding="utf-8")
-    print(f"  Transcripción de podcast guardada en: {path}", flush=True)
-
-def limpiar_audios_descargados_podcast(archivos_descargados: List[Path]) -> None:
-    for f_path in archivos_descargados:
-        try:
-            if f_path.exists():
-                f_path.unlink()
-        except Exception as e:
-            print(f"  No se pudo borrar {f_path.name}: {e}", flush=True)
-
 def _obtener_cantidad_valida(env_var_key: str, config_limit: int, fallback_default: int) -> int:
     """
     Obtiene y valida la cantidad de programas a procesar.
