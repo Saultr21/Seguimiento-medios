@@ -5,7 +5,6 @@ import warnings
 from pathlib import Path
 from typing import List, Optional
 from src.config.cargar_config import cargar_config
-from src.utils.text_utils import limpiar_texto
 from src.asr.asr_factory import ASRFactory
 import requests
 from bs4 import BeautifulSoup

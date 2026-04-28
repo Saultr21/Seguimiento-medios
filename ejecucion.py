@@ -5,7 +5,8 @@ import shutil
 from typing import List
 
 from src.config.cargar_config import cargar_config
-from src.data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video, limpiar_temporales, formatear_transcripciones
+from src.data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video
+from src.utils.file_utils import clean_temp_files
 from src.data_ingestion.descarga_podcast_espejocanario import descargar_programas_espejo_canario
 from src.services.transcription_service import TranscriptionService
 from src.asr.asr_factory import ASRFactory
@@ -151,14 +152,9 @@ def flujo_completo(
         print(f"PROGRESS:{current_progress}:Límite de podcasts establecido en 0. Omitiendo descarga de podcasts.", flush=True)
             
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
-    print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales ===", flush=True)
+    print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales ===", flush=True)
     try:
-        formatear_transcripciones()
-        print("Formateo de nombres de transcripciones completado.", flush=True)
-    except Exception as e:
-        print(f"Error durante el formateo de transcripciones: {e}", flush=True)
-    try:
-        limpiar_temporales()
+        clean_temp_files()
         print("Limpieza de archivos temporales de audio completada.", flush=True)
     except Exception as e:
         print(f"Error durante la limpieza de temporales: {e}", flush=True)

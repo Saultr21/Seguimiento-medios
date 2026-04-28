@@ -8,6 +8,7 @@ import logging
 from pytubefix import Channel, YouTube
 
 from src.config.cargar_config import cargar_config
+from src.utils.file_utils import clean_temp_files
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -24,12 +25,6 @@ WHISPER_MODEL_ID = config["whisper_model_url"]
 # ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-def limpiar_temporales() -> None:
-    for f in AUDIO_DIR.glob("tmp_*.mp3"):
-        try:
-            f.unlink()
-        except Exception as e:  # noqa: BLE001
-            print(f"No se pudo borrar {f}: {e}")
 
 def generar_nombre_base_para_video(titulo_video: str) -> str:
     """Genera un nombre base limpio para archivos a partir del título de un vídeo."""
@@ -153,35 +148,6 @@ def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: 
     return downloaded_videos
 
 # ════════════════════════════════════════════════
-# Renombrado y formateo de .txt existentes 
-# ════════════════════════════════════════════════
-def formatear_transcripciones(dry_run: bool = False):
-    patron = re.compile(
-        r"^Telenoticias\s+(?P<num>\d{1,3})\s+(?P<fecha>\d{6})\.txt$",
-        re.IGNORECASE,
-    )
-
-    cambios = 0
-    for archivo in TRANSCRIPCIONES_DIR.glob("*.txt"):
-        m = patron.match(archivo.name)
-        if not m:
-            continue
-
-        num, fecha = m.group("num"), m.group("fecha")
-        nuevo = TRANSCRIPCIONES_DIR / f"Telenoticias{num}.{fecha[4:6]}-{fecha[2:4]}-{fecha[0:2]}.txt"
-        if nuevo.exists():
-            print(f"Ya existe {nuevo.name}, omitiendo.", flush=True)
-            continue
-
-        print(f"{archivo.name} -> {nuevo.name}", flush=True)
-        if not dry_run:
-            archivo.rename(nuevo)
-            cambios += 1
-        
-    if not dry_run:
-        print("Renombrados", cambios, "archivo(s).", flush=True)
-
-# ════════════════════════════════════════════════
 # Ejecución standalone
 # ════════════════════════════════════════════════
 if __name__ == "__main__":
@@ -191,5 +157,4 @@ if __name__ == "__main__":
     PALABRA = config["youtube_keyword"]
     LIMITE = config["video_limit"]
     download_videos_from_channel(URL_CANAL, PALABRA, LIMITE)
-    formatear_transcripciones()
-    limpiar_temporales()
+    clean_temp_files()
