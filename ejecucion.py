@@ -107,7 +107,7 @@ def flujo_completo(
                 continue
 
             try:
-                print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(downloaded_videos) } ({ video_url })...")
+                print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(single_video_urls) } ({ video_url })...")
                 base_name, mp3_path = download_yt_video(video_url)
                 transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
             except Exception as e:
