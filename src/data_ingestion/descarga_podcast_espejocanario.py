@@ -43,7 +43,6 @@ def guarda_transcripcion_podcast(nombre_base: str, texto: str) -> None:
     path.write_text(texto, encoding="utf-8")
     print(f"  Transcripción de podcast guardada en: {path}", flush=True)
 
-
 def limpiar_audios_descargados_podcast(archivos_descargados: List[Path]) -> None:
     for f_path in archivos_descargados:
         try:
@@ -51,7 +50,6 @@ def limpiar_audios_descargados_podcast(archivos_descargados: List[Path]) -> None
                 f_path.unlink()
         except Exception as e:
             print(f"  No se pudo borrar {f_path.name}: {e}", flush=True)
-
 
 def _obtener_cantidad_valida(env_var_key: str, config_limit: int, fallback_default: int) -> int:
     """
@@ -83,12 +81,15 @@ def _obtener_cantidad_valida(env_var_key: str, config_limit: int, fallback_defau
 # ════════════════════════════════════════════════
 # Descarga de programas de El Espejo Canario
 # ════════════════════════════════════════════════
+def descargar_programas_espejo_canario(cantidad: int = 0) -> List[Path]:
+    if cantidad == 0:
+        print("Límite de podcasts establecido en 0. Omitiendo transcripción de podcasts.", flush=True)
+        return
 
-def descargar_programas_espejo_canario(cantidad: Optional[int] = None) -> List[Path]:
-    print("Buscando programas en El Espejo Canario...", flush=True)
+    print(f"Guardando hasta {cantidad} programa(s) de podcast. Buscando programas en El Espejo Canario...", flush=True)
     base_url = "https://www.elespejocanario.es/programas/"
     archivos_descargados_final = []
-    
+
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -129,7 +130,7 @@ def descargar_programas_espejo_canario(cantidad: Optional[int] = None) -> List[P
             print("No se encontraron enlaces válidos de iVoox para descargar.", flush=True)
             return []
         
-        print(f"\nIniciando descarga de {len(ivoox_links_con_titulos)} audio", flush=True)
+        print(f"\nIniciando descarga de { len(ivoox_links_con_titulos) } audio", flush=True)
         
         for item in ivoox_links_con_titulos:
             url = item["url"]
@@ -162,20 +163,22 @@ def descargar_programas_espejo_canario(cantidad: Optional[int] = None) -> List[P
                     nombre_archivo_esperado_mp3 = AUDIO_DIR / f"{titulo_limpio}.mp3"
 
                     if nombre_archivo_esperado_mp3.exists():
-                        archivos_descargados_final.append(nombre_archivo_esperado_mp3)
+                        archivos_descargados_final.append({ "name": titulo_limpio, "path": nombre_archivo_esperado_mp3 })
                         print(f"    Audio descargado y convertido a MP3: {nombre_archivo_esperado_mp3.name}", flush=True)
                     else:
                         print(f"    Descarga completada para '{item['titulo_original']}', pero el archivo MP3 esperado ({nombre_archivo_esperado_mp3.name}) no se encontró directamente. Verificar manualmente.", flush=True)
 
             except yt_dlp.utils.DownloadError as e_dl:
                 print(f"    Error de descarga de yt-dlp para '{item['titulo_original']}': {e_dl}", flush=True)
+            
             except Exception as e:
                 print(f"    Error inesperado durante la descarga de '{item['titulo_original']}': {e}", flush=True)
         
         if archivos_descargados_final:
-            print(f"\nDescarga de podcasts completada. Se obtuvieron {len(archivos_descargados_final)} audios.", flush=True)
+            print(f"\nDescarga de podcasts completada. Se obtuvieron { len(archivos_descargados_final) } audios.", flush=True)
         else:
             print("\nNo se descargó ningún audio de podcast.", flush=True)
+        
         return archivos_descargados_final
     
     except requests.exceptions.RequestException as e_req:
@@ -184,45 +187,6 @@ def descargar_programas_espejo_canario(cantidad: Optional[int] = None) -> List[P
     except Exception as e_main:
         print(f"Error general al obtener programas de podcast: {e_main}", flush=True)
         return []
-
-# ════════════════════════════════════════════════
-# Flujo principal
-# ════════════════════════════════════════════════
-
-def procesar_programas(cantidad: int) -> None:
-    """Procesa una cantidad determinada de programas de podcast."""
-    if cantidad == 0:
-        print("Límite de podcasts establecido en 0. Omitiendo procesamiento de podcasts.", flush=True)
-        return
-
-    print(f"Procesando hasta {cantidad} programa(s) de podcast.", flush=True)
-    archivos_audio_descargados = descargar_programas_espejo_canario(cantidad)
-    
-    if not archivos_audio_descargados:
-        print("No se descargaron audios de podcast para procesar.", flush=True)
-        return
-
-    print(f"\nIniciando procesamiento de {len(archivos_audio_descargados)} audios de podcast descargados...", flush=True)
-    for i, archivo_path in enumerate(archivos_audio_descargados):
-        print(f"\nProcesando audio {i+1}/{len(archivos_audio_descargados)}: {archivo_path.name}", flush=True)
-        
-        nombre_base_transcripcion = archivo_path.stem
-        
-        print(f"  Iniciando transcripción para: {archivo_path.name} (esto puede tardar)...", flush=True)
-        try:
-            texto_transcrito = transcription_model.transcribe(archivo_path, "spanish")
-        except Exception as e:
-            print(f"    Error inesperado durante la transcripción de {archivo_path.name}: {e}", flush=True)
-            texto_transcrito = None
-        
-        if texto_transcrito:
-            print(f"  Transcripción completada para: {archivo_path.name}.", flush=True)
-            texto_limpio = limpiar_texto(texto_transcrito)
-            guarda_transcripcion_podcast(nombre_base_transcripcion, texto_limpio)
-        else:
-            print(f"  No se generó transcripción para {archivo_path.name} o la transcripción está vacía.", flush=True)
-    
-    print("\nProceso de podcasts completado.", flush=True)
 
 # ════════════════════════════════════════════════
 # Ejecución standalone
@@ -235,4 +199,3 @@ if __name__ == "__main__":
     )
         
     print(f"Ejecutando script de descarga de podcasts directamente. Cantidad final a procesar: {cantidad_a_procesar}", flush=True)
-    procesar_programas(cantidad_a_procesar)

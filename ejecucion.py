@@ -6,9 +6,9 @@ from typing import List
 
 from src.config.cargar_config import cargar_config
 from src.data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video, limpiar_temporales, formatear_transcripciones
+from src.data_ingestion.descarga_podcast_espejocanario import descargar_programas_espejo_canario
 from src.services.transcription_service import TranscriptionService
 from src.asr.asr_factory import ASRFactory
-from src.data_ingestion.descarga_podcast_espejocanario import procesar_programas as procesar_podcasts
 from src.llm.peticion_window_sliding import main as window_sliding_main
 from src.nlp.analisis_pysentimiento_json import analizar_textos  
 
@@ -106,12 +106,12 @@ def flujo_completo(
                 print(f"  URL de vídeo único vacía omitida (índice {i+1}).", flush=True)
                 continue
 
-            print(f"  Procesando vídeo único {i+1}/{ len(single_video_urls) }: {video_url}", flush=True)
             try:
+                print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(downloaded_videos) } ({ video_url })...")
                 base_name, mp3_path = download_yt_video(video_url)
-                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)    
+                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
             except Exception as e:
-                print(f"  Error al procesar vídeo único '{base_name}': {e}", flush=True)
+                print(f"  Error al procesar vídeo único en {video_url}: {e}", flush=True)
         
         current_progress += 5
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de vídeos únicos completada (o intentada).", flush=True)
@@ -126,6 +126,7 @@ def flujo_completo(
 
         for video in downloaded_videos:
             base_name, video_path = video['name'], video['path']
+            print(f"Procesando vídeo del canal {channel_url} { i+1 }/{ len(downloaded_videos) } ({ base_name })...")
             transcription_service.transcribe_audio(base_name, video_path)
 
         current_progress += 20
@@ -136,7 +137,14 @@ def flujo_completo(
     # Paso 1.5: Descargar y transcribir podcasts de El Espejo Canario
     if podcast_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1.5: Descargar y Transcribir Podcasts (Límite: {podcast_limit}) ===", flush=True)
-        procesar_podcasts(podcast_limit)
+        downloaded_videos = descargar_programas_espejo_canario(podcast_limit)
+
+        for i, video in enumerate(downloaded_videos):
+            base_name, video_path = video['name'], video['path']
+            print(f"Procesando programa de El Espejo Canario { i+1 }/{ len(downloaded_videos) } ({ base_name })...")
+            
+            transcription_service.transcribe_audio(base_name, video_path, "spanish")
+        
         current_progress += 15
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de podcasts completada (o intentada).", flush=True)
     else:

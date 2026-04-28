@@ -1,7 +1,7 @@
 from pathlib import Path
 from src.asr.base_asr import BaseASR
 from src.utils.text_utils import limpiar_texto
-from src.utils.file_utils import guarda_transcripcion
+from src.utils.file_utils import guardar_transcripcion
 
 class TranscriptionService:
     def __init__(self, transcription_dir: str, transcription_model: BaseASR):
@@ -19,7 +19,7 @@ class TranscriptionService:
             print(f"  Transcripción completada para: {base_name}.", flush=True)
             
             texto_limpio = limpiar_texto(texto_transcrito)
-            guarda_transcripcion(self._transcription_dir, base_name, texto_limpio)
+            guardar_transcripcion(self._transcription_dir, base_name, texto_limpio)
 
         except Exception as e:
             print(f"  Error durante la transcripción del vídeo {base_name}: {e}", flush=True)
