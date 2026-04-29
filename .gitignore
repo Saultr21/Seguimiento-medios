@@ -5,3 +5,6 @@ out/
 venv/
 .venv/
 .env
+
+# Información de build-tools.
+*.egg-info/

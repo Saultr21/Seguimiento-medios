@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "seguimiento-medios"
@@ -13,8 +13,10 @@ dependencies = [
     "uvicorn[standard]",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["."]
-
 [project.scripts]
-start-server = "app:run"
+start-server = "api:run"
+run-pipeline = "pipeline.ejecucion:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]  # Busca todo dentro de src
+include = ["*"]  # Incluye todos los subpaquetes automáticamente

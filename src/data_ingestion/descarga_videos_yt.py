@@ -7,8 +7,8 @@ from typing import List, Dict
 import logging
 from pytubefix import Channel, YouTube
 
-from src.config.cargar_config import cargar_config
-from src.utils.file_utils import clean_temp_files
+from config.cargar_config import cargar_config
+from utils.file_utils import clean_temp_files
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("transformers").setLevel(logging.ERROR)

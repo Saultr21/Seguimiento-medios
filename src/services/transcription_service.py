@@ -1,7 +1,7 @@
 from pathlib import Path
-from src.asr.base_asr import BaseASR
-from src.utils.text_utils import limpiar_texto
-from src.utils.file_utils import guardar_transcripcion
+from asr.base_asr import BaseASR
+from utils.text_utils import limpiar_texto
+from utils.file_utils import guardar_transcripcion
 
 class TranscriptionService:
     def __init__(self, transcription_dir: str, transcription_model: BaseASR):

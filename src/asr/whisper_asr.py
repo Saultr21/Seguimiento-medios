@@ -6,7 +6,7 @@ from transformers import (
 )
 
 from .base_asr import BaseASR
-from src.config.torch_config import _resolve_device_and_dtype
+from config.torch_config import _resolve_device_and_dtype
 
 class _WhisperASR(BaseASR):
     def __init__(self, config):

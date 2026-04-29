@@ -4,8 +4,8 @@ import re
 import warnings
 from pathlib import Path
 from typing import List, Optional
-from src.config.cargar_config import cargar_config
-from src.asr.asr_factory import ASRFactory
+from config.cargar_config import cargar_config
+from asr.asr_factory import ASRFactory
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp

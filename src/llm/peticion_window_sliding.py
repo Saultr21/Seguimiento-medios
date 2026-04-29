@@ -3,7 +3,7 @@ import re
 import json
 import requests
 import urllib3
-from src.config.cargar_config import cargar_config
+from config.cargar_config import cargar_config
 
 # Desactiva advertencias por certificados SSL no verificados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

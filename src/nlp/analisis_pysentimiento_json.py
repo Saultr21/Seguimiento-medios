@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 import logging
 import pandas as pd
 from pysentimiento import create_analyzer
-from src.config.cargar_config import cargar_config
+from config.cargar_config import cargar_config
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 config = cargar_config()
