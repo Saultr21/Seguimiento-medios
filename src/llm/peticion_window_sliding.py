@@ -1,25 +1,11 @@
 import os
 import re
-import json
 import requests
 import urllib3
 from config.cargar_config import cargar_config
 
 # Desactiva advertencias por certificados SSL no verificados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-def leer_texto(path):
-    with open(path, encoding='utf-8') as f:
-        return f.read()
-    
-def buscar_menciones(texto, palabras_clave, contexto=500):
-    palabras_regex = r"\b(" + "|".join(re.escape(palabra) + r"s?" for palabra in palabras_clave) + r")\b"
-    pattern = re.compile(palabras_regex, re.IGNORECASE)
-    posiciones = [(m.start(), m.end()) for m in pattern.finditer(texto)]
-    return list(dict.fromkeys(
-        texto[max(0, s - contexto):min(len(texto), e + contexto)].strip()
-        for s, e in posiciones
-    ))
 
 def llamar_llm(fragmentos, url, headers, model, system_prompt):
     resultados = []
@@ -94,55 +80,6 @@ def revisar_fragmentos(fragmentos, url, headers, model, palabras_clave):
         print(f"Error al llamar al LLM para revisión: {e}")
 
     return fragmentos
-
-def guardar_resultados(salida_json, origen_txt, fragmentos):
-    try:
-        with open(salida_json, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        data = {}
-
-    clave = os.path.splitext(os.path.basename(origen_txt))[0].lower()
-    data[clave] = list(dict.fromkeys(data.get(clave, []) + fragmentos))
-
-    with open(salida_json, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    print(f"Resultados añadidos a '{salida_json}' bajo la clave '{clave}'.")
-
-def procesar_archivo(input_path, palabras_clave, json_output_path, contexto=500):
-    config = cargar_config()
-    url = config["llm_url"]
-    headers = {"Content-Type": "application/json"}
-    model = config["llm_model"]
-
-    palabras_clave_str = ", ".join(palabras_clave)
-    system_prompt = (
-        f"Devuelve todas las oraciones o fragmentos que contengan las palabras clave {palabras_clave_str}. Debe empezar en un punto y acabar en un punto."        
-        "No recortes dentro de una oración, ni añadas ni quites ni modifiques nada. "
-        "Incluye todas las menciones, incluso si varias oraciones expresan ideas similares. "
-        "No filtres ni resumas. Devuelve todo lo relevante sin eliminar nada por parecer repetido. "
-        "Si no hay ninguna mención, responde exactamente 'NINGUNO'. "
-        "Devuelve únicamente el resultado sin explicaciones ni comentarios."
-    )
-
-    texto = leer_texto(input_path)
-    fragmentos_crudos = buscar_menciones(texto, palabras_clave, contexto)
-    print(f"\nProcesando archivo: {os.path.basename(input_path)}")
-    print(f"Fragmentos encontrados: {len(fragmentos_crudos)}")
-
-    if not fragmentos_crudos:
-        print("No se encontraron palabras clave en el texto.")
-        return
-
-    fragmentos_llm = llamar_llm(fragmentos_crudos, url, headers, model, system_prompt)
-    print(f"Contextos relevantes: {len(fragmentos_llm)}")
-
-    fragmentos_finales = revisar_fragmentos(fragmentos_llm, url, headers, model, palabras_clave)
-    print(f"Fragmentos únicos después de revisión: {len(fragmentos_finales)}\n")
-
-    if fragmentos_finales:
-        guardar_resultados(json_output_path, input_path, fragmentos_finales)
 
 def main(
     json_output_path=None,

@@ -15,8 +15,8 @@ dependencies = [
 
 [project.scripts]
 start-server = "api:run"
-run-pipeline = "pipeline.ejecucion:run"
+run-pipeline = "pipeline:run"
 
 [tool.setuptools.packages.find]
-where = ["src"]  # Busca todo dentro de src
-include = ["*"]  # Incluye todos los subpaquetes automáticamente
+where = ["src"]
+include = ["*"]

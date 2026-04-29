@@ -6,10 +6,12 @@ from typing import List
 import argparse
 
 from config.cargar_config import cargar_config
+from llm import LLMClient
+from services.llm_service import LLMService
+from services.transcription_service import TranscriptionService
 from data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video
 from utils.file_utils import clean_temp_files
 from data_ingestion.descarga_podcast_espejocanario import descargar_programas_espejo_canario
-from services.transcription_service import TranscriptionService
 from asr.asr_factory import ASRFactory
 from llm.peticion_window_sliding import main as window_sliding_main
 from nlp.analisis_pysentimiento_json import analizar_textos  
@@ -62,11 +64,15 @@ def flujo_completo(
     transcripciones_folder.mkdir(parents=True, exist_ok=True)
 
     # ════════════════════════════════════════════════
-    # Carga del modelo de transcripción (Whisper o cualquiera).
+    # Carga de modelos (Whisper o cualquiera).
     # ════════════════════════════════════════════════
     config = cargar_config()
+
     transcription_model = ASRFactory.load_whisper_asr(config)
     transcription_service = TranscriptionService(str(transcripciones_folder), transcription_model)
+
+    llm_model = LLMClient(config["llm_url"], config["llm_model"])
+    llm_service = LLMService(llm_model)
     
     if not channel_url and video_limit > 0:
         print("Error: No se proporcionó la URL del canal de YouTube y se solicitó procesar videos del canal.", flush=True)
@@ -180,11 +186,15 @@ def flujo_completo(
             for i, filename in enumerate(archivos_transcripcion):
                 progreso_interno_ws = int(((i + 1) / total_archivos) * progreso_ws_rango)
                 print(f"PROGRESS:{progreso_ws_base + progreso_interno_ws}:Procesando archivo de transcripción {i+1}/{total_archivos}: {filename.name}", flush=True)
+                llm_service.analize_transcription(str(filename), mention_keywords, json_output_path)
+
+                """
                 window_sliding_main(
                     input_path=str(filename),
                     json_output_path=str(json_output_path),
                     palabras_clave=mention_keywords
                 )
+                """
         else:
             print("No hay archivos de transcripción para procesar en el Paso 2.", flush=True)
         current_progress += progreso_ws_rango

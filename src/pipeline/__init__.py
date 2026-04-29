@@ -1,1 +1,1 @@
-# Vacío, por ahora. Identifica la carpeta como un paquete.
+from .ejecucion import run
