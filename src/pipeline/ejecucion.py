@@ -161,7 +161,7 @@ def flujo_completo(
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
     print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales ===", flush=True)
     try:
-        clean_temp_files()
+        clean_temp_files(Path(config['audio_dir']))
         print("Limpieza de archivos temporales de audio completada.", flush=True)
     except Exception as e:
         print(f"Error durante la limpieza de temporales: {e}", flush=True)
