@@ -6,7 +6,7 @@ class LLMClient:
         self.url = url
         self.model = model
 
-    def call(self, user_prompt, system_prompt, headers):
+    def call(self, user_prompt: str, system_prompt: str, headers):
         # Por el momento, iteramos a través de los fragmentos donde se ha encontrado contenido.
         # La idea sería pasar, con suerte, el texto completo con chunking.
         # ¿Habría que hacer solicitud a "v1/messages/count_tokens" para el tamaño de los chunks?
@@ -14,21 +14,22 @@ class LLMClient:
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt + "\n/no_think"}
+                {"role": "user", "content": "/nothink\n" + user_prompt}
             ],
             "temperature": 0.0,
-            "max_tokens": 512
+            "max_tokens": 4096
         }
             
         res = requests.post(self.url, headers=headers, json=payload, verify=False)
         if res.status_code == 200:
             result = []
             for choice in res.json().get('choices', []):
+                print(choice)
                 content = choice.get('message', {}).get('content', '').strip()
                 if content and content.upper() != "NINGUNO":
                     result.append(content)
                 else:
-                    return None
+                    continue
             return result
         else:
             print(f"Ha habido un problema procesando la solicitud: HTTP {res.status_code}")
