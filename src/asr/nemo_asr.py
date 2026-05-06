@@ -4,6 +4,7 @@ from config.torch_config import _resolve_device_and_dtype
 from omegaconf import DictConfig
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models.aed_multitask_models import EncDecMultiTaskModel
+import subprocess
 import torch
 import numpy as np
 
@@ -14,7 +15,7 @@ class _NemoASR(BaseASR):
     
     def _load_model(self, config):
         # Carga del modelo.
-        model: EncDecMultiTaskModel = ASRModel.from_pretrained(model_name="nvidia/canary-1b-v2")
+        model: EncDecMultiTaskModel = ASRModel.from_pretrained(model_name=config['nemo_model_url'])
         
         decoding_cfg = DictConfig({
             "strategy": "beam",
@@ -31,7 +32,7 @@ class _NemoASR(BaseASR):
 
         model = model.eval()
         model = model.half()  # Coloca float16, en lugar de float32.
-        model = torch.compile(model, mode="max-autotune")    
+        model = torch.compile(model, mode="reduce-overhead")    
 
         return model, device
     
@@ -45,27 +46,43 @@ class _NemoASR(BaseASR):
         """
         
         if self._model is None:
-            raise ValueError("Model is not loaded")
+            raise ValueError("Modelo no cargado.")
         
-        is_cuda = False
-        if "cuda" in self._device:
-            is_cuda = True
-        
+        self._to_mono(audio_path)
+
+        is_cuda = "cuda" in self._device
         with torch.inference_mode():
-            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=is_cuda):
                 result = self._model.transcribe(
-                    audio=["tmp/audios/output.mp3"],
+                    audio=[audio_path],
+                    batch_size=1,
                     source_lang="es",  # Idioma de entrada
-                    target_lang="es",  # Idioma de salida (mismo para transcripción)
+                    target_lang="es",  # Idioma de salida
                     task="asr",        # Tarea de reconocimiento de voz
                     pnc="yes",          # Incluir puntuación y mayúsculas
-                    chunk_len_in_secs=40.0,
+                    chunk_len_in_secs=40.0, # Chunks de 40 segundos con 4 segundos de solapamiento.
                     shift_len_in_secs=4.0,
                 )
                 print(result)
-                return result[0].text
+                return result[0].text        
+        if is_cuda:
+            torch.cuda.empty_cache()
+
+    def _to_mono(self, audio_path: str):
+        try:
+            print("Tratando de convertir archivo a mono...")
+
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-i", audio_path, "-ac", "1", audio_path],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            print(result.stderr)
+        except subprocess.CalledProcessError as e:
+            print(f"ffmpeg failed with return code {e.returncode}")
+            print(e.stderr)
 
 if __name__ == "__main__":
-    
-    model = _NemoASR({})
-    model.transcribe("", "")
+    model = _NemoASR({"nemo_model_url": "nvidia/canary-1b-v2"})
+    model.transcribe("./tmp/audios/output.wav", "spanish")
