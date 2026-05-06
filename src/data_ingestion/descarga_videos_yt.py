@@ -48,7 +48,8 @@ def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
     if not keyword or len(keyword.strip()) == 0:
         print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
         selected_videos = []
-        for i, vid in enumerate(Channel(channel_url).videos):
+        channel = Channel(channel_url)
+        for i, vid in enumerate(channel.videos):
             selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
             if len(selected_videos) >= limite:
                 break
@@ -58,7 +59,8 @@ def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
     print(f"Buscando hasta {limite} vídeos con ‘{keyword}’ en el título…", flush=True)
     
     selected_videos = []
-    for i, vid in enumerate(Channel(channel_url).videos):
+    channel = Channel(channel_url)
+    for i, vid in enumerate(channel.videos):
         if keyword.lower() in vid.title.lower():
             selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
             if len(selected_videos) >= limite:

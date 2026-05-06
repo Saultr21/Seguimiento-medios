@@ -132,10 +132,10 @@ def flujo_completo(
         print(f"\nPROGRESS:{current_progress}:=== Paso 1: Descargar y Transcribir Vídeos de YouTube ({channel_keyword}, Límite: {video_limit}) ===", flush=True)
         downloaded_videos = download_videos_from_channel(channel_url, channel_keyword, video_limit)
 
-        for video in downloaded_videos:
+        for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']
             print(f"Procesando vídeo del canal {channel_url} { i+1 }/{ len(downloaded_videos) } ({ base_name })...")
-            transcription_service.transcribe_audio(base_name, video_path)
+            transcription_service.transcribe_audio(base_name, video_path, whisper_language)
 
         current_progress += 20
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de YouTube completada.", flush=True)
@@ -186,15 +186,7 @@ def flujo_completo(
             for i, filename in enumerate(archivos_transcripcion):
                 progreso_interno_ws = int(((i + 1) / total_archivos) * progreso_ws_rango)
                 print(f"PROGRESS:{progreso_ws_base + progreso_interno_ws}:Procesando archivo de transcripción {i+1}/{total_archivos}: {filename.name}", flush=True)
-                llm_service.analize_transcription(str(filename), mention_keywords, json_output_path)
-
-                """
-                window_sliding_main(
-                    input_path=str(filename),
-                    json_output_path=str(json_output_path),
-                    palabras_clave=mention_keywords
-                )
-                """
+                llm_service.analize_transcription(str(filename), json_output_path, mention_keywords)
         else:
             print("No hay archivos de transcripción para procesar en el Paso 2.", flush=True)
         current_progress += progreso_ws_rango
@@ -228,7 +220,7 @@ def run():
         description="Pipeline de ejecución"
     )
 
-    # Required arguments
+    # Añadimos argumentos requeridos para la llamada con "subprocess".
     parser.add_argument("channel_url")
     parser.add_argument("channel_keyword")
 
