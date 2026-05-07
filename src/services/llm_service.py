@@ -53,7 +53,8 @@ class LLMService:
             Eres un asistente que extrae menciones de entidades en un texto.
             - Devuelve solo los fragmentos donde aparezcan las entidades dadas.
             - Incluye referencias implícitas si son claras.
-            - Los fragmentos recogidos deben terminar en un punto.
+            - Los fragmentos deben ser frases completas, que no sean cortadas a la mitad.
+            - Las frases deben empezar tras un punto y terminar en un punto.
             - Separa contextos con: \n=====\n.
             - Si no hay menciones, reponde exactamente: NINGUNO.
             - Respuesta breve, sin explicaciones.
