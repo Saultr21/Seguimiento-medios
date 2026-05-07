@@ -3,6 +3,7 @@ import numpy as np
 import subprocess
 import torch
 import os
+import gc
 
 from asr.base_asr import BaseASR
 from config.torch_config import _resolve_device_and_dtype
@@ -26,23 +27,43 @@ class _NemoASR(BaseASR):
             "beam": {
                 "search_type": "default",
                 "beam_size": 1,
-                "return_best_hypothesis": True
+                "return_best_hypothesis": True,
+                "preserve_alignments": False,
+                "score_norm": False,
             }
         })
         model.change_decoding_strategy(decoding_cfg)
         
         device, _, _ = _resolve_device_and_dtype()
-        model = model.to(device)
 
+        if "cuda" in device:
+            model = model.half()
+        else:
+            model = model.bfloat16()
+        
+        model = model.to(device)
         model = model.eval()
-        model = model.half()  # Coloca float16, en lugar de float32.
-        model = torch.compile(model, mode="reduce-overhead")    
+        
+        # Deshabilitamos el "almacenamiento de gradiente", que solo se usa para entrenamiento.
+        for param in model.parameters():
+            param.requires_grad = False
+
+        model = torch.compile(model, mode="reduce-overhead")
 
         return model, device
     
+    def _flush_memory(self):
+        """Libera memoria RAM y VRAM tras operaciones pesadas."""
+        gc.collect()  # Forzamos a funcionar al recolector de basura de Python.
+
+        if "cuda" in self._device:
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
     def _warmup(self):
         dummy = np.zeros(16000, dtype=np.float32)  # 1 segundo de silencio.
         self._model.transcribe(audio=[dummy], source_lang="es", target_lang="es", task="asr", pnc="no")
+        self._flush_memory()
 
     def transcribe(self, audio_path: str, audio_language: str):
         """
@@ -56,6 +77,8 @@ class _NemoASR(BaseASR):
 
         is_cuda = "cuda" in self._device
         with torch.inference_mode():
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=is_cuda):
+                print("Iniciando transcripción...")
                 result = self._model.transcribe(
                     audio=[audio_path],
                     batch_size=1,
@@ -63,13 +86,16 @@ class _NemoASR(BaseASR):
                     target_lang="es",  # Idioma de salida
                     task="asr",        # Tarea de reconocimiento de voz
                     pnc="yes",          # Incluir puntuación y mayúsculas
-                    chunk_len_in_secs=40.0, # Chunks de 40 segundos con 4 segundos de solapamiento.
+                    chunk_len_in_secs=20.0, # Chunks de 40 segundos con 4 segundos de solapamiento.
                     shift_len_in_secs=4.0,
                 )
-                print(result)
-                return result[0].text        
-        if is_cuda:
-            torch.cuda.empty_cache()
+
+                print("Transcripción completada.")
+
+                if is_cuda:
+                    self._flush_memory()
+
+                return result[0].text            
 
     def _to_mono(self, audio_path: str):
         """
