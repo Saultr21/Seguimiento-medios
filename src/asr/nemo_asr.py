@@ -39,7 +39,7 @@ class _NemoASR(BaseASR):
         if "cuda" in device:
             model = model.half()
         else:
-            model = model.bfloat16()
+            model = model.float()
         
         model = model.to(device)
         model = model.eval()
@@ -47,8 +47,9 @@ class _NemoASR(BaseASR):
         # Deshabilitamos el "almacenamiento de gradiente", que solo se usa para entrenamiento.
         for param in model.parameters():
             param.requires_grad = False
-
-        model = torch.compile(model, mode="reduce-overhead")
+        
+        if "cuda" in device:
+            model = torch.compile(model, mode="reduce-overhead")
 
         return model, device
     
@@ -110,7 +111,8 @@ class _NemoASR(BaseASR):
                 [ "ffmpeg", "-y", "-i", audio_path, "-ac", "1", tmp_audio_path ],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                encoding="utf-8"
             )
             os.replace(tmp_audio_path, audio_path)
 
