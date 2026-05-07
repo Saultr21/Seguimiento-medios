@@ -1,12 +1,16 @@
-from asr.base_asr import BaseASR
-from config.torch_config import _resolve_device_and_dtype
-
 from omegaconf import DictConfig
-from nemo.collections.asr.models import ASRModel
-from nemo.collections.asr.models.aed_multitask_models import EncDecMultiTaskModel
+import numpy as np
 import subprocess
 import torch
-import numpy as np
+import os
+
+from asr.base_asr import BaseASR
+from config.torch_config import _resolve_device_and_dtype
+from nemo.collections.asr.models import ASRModel
+from nemo.collections.asr.models.aed_multitask_models import EncDecMultiTaskModel
+from nemo.utils import logging as nemo_logging
+
+nemo_logging.set_verbosity(nemo_logging.ERROR) # Solo se hará log de errores.
 
 class _NemoASR(BaseASR):
     def __init__(self, config):
@@ -68,21 +72,25 @@ class _NemoASR(BaseASR):
             torch.cuda.empty_cache()
 
     def _to_mono(self, audio_path: str):
+        """
+        Para que el modelo de Canary procese correctamente el audio, necesita que esté en mono. Este método usa ffmpeg para realizar esta transformación.
+        """
+
         try:
             print("Tratando de convertir archivo a mono...")
 
+            tmp_audio_path = audio_path + ".tmp.mp3"
             result = subprocess.run(
-                ["ffmpeg", "-y", "-i", audio_path, "-ac", "1", audio_path],
+                [ "ffmpeg", "-y", "-i", audio_path, "-ac", "1", tmp_audio_path ],
                 capture_output=True,
                 text=True,
                 check=True
             )
+            os.replace(tmp_audio_path, audio_path)
 
-            print(result.stderr)
+            print(f"Se ha convertido el archivo a mono: {result.returncode}.")
         except subprocess.CalledProcessError as e:
-            print(f"ffmpeg failed with return code {e.returncode}")
+            print(f"FFMPEG ha fallado con el código de error {e.returncode}.")
             print(e.stderr)
-
-if __name__ == "__main__":
-    model = _NemoASR({"nemo_model_url": "nvidia/canary-1b-v2"})
-    model.transcribe("./tmp/audios/output.wav", "spanish")
+        except Exception as e:
+            print(f"Ha habido un fallo cambiando el formato del fichero {audio_path} a mono.")

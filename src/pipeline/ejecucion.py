@@ -67,7 +67,7 @@ def flujo_completo(
     # ════════════════════════════════════════════════
     config = cargar_config()
 
-    transcription_model = ASRFactory.load_whisper_asr(config)
+    transcription_model = ASRFactory.load_nemo_asr(config)
     transcription_service = TranscriptionService(str(transcripciones_folder), transcription_model)
 
     llm_model = LLMClient(config["llm_url"], config["llm_model"])
