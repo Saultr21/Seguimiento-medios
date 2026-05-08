@@ -20,12 +20,10 @@ config = cargar_config()
 
 AUDIO_DIR = Path(config["audio_dir"])
 TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
-WHISPER_MODEL_ID = config["whisper_model_url"]
 
 # ════════════════════════════════════════════════
 # Utilidades
 # ════════════════════════════════════════════════
-
 def generate_filename(title: str) -> str:
     """Genera un nombre base limpio para archivos a partir del título de un vídeo."""
     m = re.search(r"Telenoticias\s+(\d+)\s+[|]??\s*(\d{2})/(\d{2})/(\d{2})", title)
