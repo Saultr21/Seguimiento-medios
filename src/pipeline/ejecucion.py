@@ -13,7 +13,7 @@ from services.transcription_service import TranscriptionService
 from data_ingestion.download_yt_video import download_videos_from_channel, download_yt_video
 from data_ingestion.download_podcasts import download_espejocanario_podcasts
 from utils.file_utils import clean_temp_files
-from nlp.analisis_pysentimiento_json import analizar_textos  
+from nlp.sentiment_analysis import analyze_texts  
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
@@ -194,7 +194,7 @@ def flujo_completo(
         # Paso 3: Analizar sentimientos/emociones
         print(f"\nPROGRESS:{current_progress}:=== Paso 3: Analizar Sentimientos ===", flush=True)
         if Path(json_output_path).exists() and Path(json_output_path).stat().st_size > 0 :
-            analizar_textos(input_file=str(json_output_path), output_file=str(csv_output_path), debug=False)
+            analyze_texts(input_file=str(json_output_path), output_file=str(csv_output_path), debug=False)
         else:
             print(f"El archivo JSON '{json_output_path}' no existe o está vacío. Omitiendo análisis de sentimientos.", flush=True)
         current_progress = 95

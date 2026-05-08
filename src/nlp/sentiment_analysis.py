@@ -5,7 +5,9 @@ from typing import List, Dict, Any
 import logging
 import pandas as pd
 from pysentimiento import create_analyzer
+
 from config.cargar_config import cargar_config
+from utils.file_utils import read_json_file
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 config = cargar_config()
@@ -13,7 +15,6 @@ config = cargar_config()
 # ────────────────────────────────────────────────────────────────────────────────
 # Utilidades CLI
 # ────────────────────────────────────────────────────────────────────────────────
-
 def parse_arguments() -> argparse.Namespace:
     """Procesa los argumentos de línea de comandos."""
     parser = argparse.ArgumentParser(
@@ -44,11 +45,11 @@ def parse_arguments() -> argparse.Namespace:
 # Helpers
 # ────────────────────────────────────────────────────────────────────────────────
 
-a_porcentaje = lambda p: f"{p * 100:.2f}%"  
+to_percentage = lambda p: f"{p * 100:.2f}%"  
 
 # Diccionarios de traducción
-SENTIMENT_TR = {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutral"}
-EMOTION_TR = {
+SENTIMENT_DICT = {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutral"}
+EMOTION_DICT = {
     "joy": "alegría",
     "anger": "ira",
     "fear": "miedo",
@@ -57,42 +58,42 @@ EMOTION_TR = {
     "disgust": "asco",
     "others": "otros",
 }
-HATE_TR = {"hateful": "odio", "targeted": "dirigido", "aggressive": "agresivo"}
+HATE_DICT = {"hateful": "odio", "targeted": "dirigido", "aggressive": "agresivo"}
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Lectura y preparación de datos
 # ────────────────────────────────────────────────────────────────────────────────
-
-def cargar_fragmentos(path_json: Path, debug: bool = False) -> List[Dict[str, Any]]:
+def _load_fragments(path_json: Path, debug: bool = False) -> List[Dict[str, Any]]:
     """Convierte el JSON (fecha.edición > [frags]) en lista uniforme."""
-    try:
-        data = json.loads(path_json.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise SystemExit(f"¡Error! No se encontró {path_json}")
-    except json.JSONDecodeError:
-        raise SystemExit(f"¡Error! {path_json} no contiene JSON válido")
 
-    fragmentos = [
-        {"titulo": clave, "fragmento": i, "texto": txt}
-        for clave, lista in data.items()
-        for i, txt in enumerate(lista, 1)
-        if txt.strip()
-    ]
+    data = read_json_file(path_json)
+    if not data:
+        print(f"Error leyendo el archivo en {path_json}.")
 
-    if not fragmentos:
+    fragments = []
+    for title, text_list in data.items():
+        for index, text in enumerate(text_list, start=1):
+            if text.strip():
+                fragment = {
+                    "title": title,
+                    "index": index,
+                    "text": text,
+                }
+                fragments.append(fragment)
+
+    if len(fragments) == 0:
         raise SystemExit(f"¡Error! No se encontraron fragmentos en {path_json}")
 
     if debug:
-        print(f"› Se han generado {len(fragmentos)} fragmentos a partir de {len(data)} llaves")
-    return fragmentos
+        print(f"› Se han generado { len(fragments) } fragmentos a partir de {len(data)} llaves")
+    return fragments
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Analizadores
 # ────────────────────────────────────────────────────────────────────────────────
-
-def cargar_analizadores():
+def _load_analyzers():
     print("Cargando analizadores…", end=" ")
-    analizadores = {
+    analyzers = {
         "sentiment": create_analyzer(task="sentiment", lang="es"),
         "emotion": create_analyzer(task="emotion", lang="es"),
         "hate": create_analyzer(task="hate_speech", lang="es"),
@@ -100,57 +101,58 @@ def cargar_analizadores():
         "context_hate": create_analyzer(task="context_hate_speech", lang="es"),
         "targeted_sentiment": create_analyzer(task="targeted_sentiment", lang="es"),
     }
-    print("Cargados.")
-    return analizadores
+    print("Analizadores cargados.")
+
+    return analyzers
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Procesamiento de cada fragmento
 # ────────────────────────────────────────────────────────────────────────────────
+def _analyze_fragments(frag: Dict[str, Any], az, debug=False) -> Dict[str, Any]:
+    txt = frag["text"]
 
-def analizar_fragmento(frag: Dict[str, Any], az, debug=False) -> Dict[str, Any]:
-    txt = frag["texto"]
+    sentiment = az["sentiment"].predict(txt)
+    emotion = az["emotion"].predict(txt)
+    hate = az["hate"].predict(txt)
+    ner = az["ner"].predict(txt)
+    context_hate = az["context_hate"].predict(txt)
+    targeted_sentiment = az["targeted_sentiment"].predict(txt)
 
-    snt = az["sentiment"].predict(txt)
-    emo = az["emotion"].predict(txt)
-    h8 = az["hate"].predict(txt)
-    ner_pred = az["ner"].predict(txt)
-    ctx_h8 = az["context_hate"].predict(txt)
-    tsent = az["targeted_sentiment"].predict(txt)
-
-    entidades = []
-    for ent in getattr(ner_pred, "entities", []):
+    entities = []
+    for ent in getattr(ner, "entities", []):
         if isinstance(ent, dict):
-            entidades.append(f"{ent.get('text','')} ({ent.get('tag','')})")
+            entities.append(f"{ent.get('text','')} ({ent.get('tag','')})")
         else:
-            entidades.append(str(ent))
+            entities.append(str(ent))
+
 
     out = {
-        "titulo": frag["titulo"],
-        "fragmento": frag["fragmento"],
+        "titulo": frag["title"],
+        "fragmento": frag["index"],
         "texto": txt,
-        "sentimiento": SENTIMENT_TR.get(snt.output, snt.output),
-        "prob_pos": a_porcentaje(snt.probas["POS"]),
-        "prob_neg": a_porcentaje(snt.probas["NEG"]),
-        "prob_neu": a_porcentaje(snt.probas["NEU"]),
-        "emocion": EMOTION_TR.get(emo.output, emo.output),
-        "odio_detectado": ", ".join(HATE_TR.get(t, t) for t in h8.output) or "No",
-        "prob_odio": a_porcentaje(h8.probas["hateful"]),
-        "prob_dirigido": a_porcentaje(h8.probas["targeted"]),
-        "prob_agresivo": a_porcentaje(h8.probas["aggressive"]),
-        "entidades": ", ".join(entidades) if entidades else "No hay entidades",
-        "odio_contextual": "Sí" if ctx_h8.output else "No",
-        "prob_odio_contextual": a_porcentaje(ctx_h8.probas.get("HATE", 0)),
-        "sentimiento_dirigido": str(tsent.output),
+        "sentimiento": SENTIMENT_DICT.get(sentiment.output, sentiment.output),
+        "prob_pos": to_percentage(sentiment.probas["POS"]),
+        "prob_neg": to_percentage(sentiment.probas["NEG"]),
+        "prob_neu": to_percentage(sentiment.probas["NEU"]),
+        "emocion": EMOTION_DICT.get(emotion.output, emotion.output),
+        "odio_detectado": ", ".join(HATE_DICT.get(t, t) for t in hate.output) or "No",
+        "prob_odio": to_percentage(hate.probas["hateful"]),
+        "prob_dirigido": to_percentage(hate.probas["targeted"]),
+        "prob_agresivo": to_percentage(hate.probas["aggressive"]),
+        "entidades": ", ".join(entities) if entities else "No hay entidades",
+        "odio_contextual": "Sí" if context_hate.output else "No",
+        "prob_odio_contextual": to_percentage(context_hate.probas.get("HATE", 0)),
+        "sentimiento_dirigido": str(targeted_sentiment.output),
     }
 
     # Probabilidades de emociones
-    for k, v in emo.probas.items():
-        out[f"emo_{EMOTION_TR.get(k, k)}"] = a_porcentaje(v)
+    for k, v in emotion.probas.items():
+        out[f"emo_{EMOTION_DICT.get(k, k)}"] = to_percentage(v)
 
     # Probabilidades de sentimiento dirigido 
-    if hasattr(tsent, "probas"):
-        for k, v in tsent.probas.items():
-            out[f"prob_sent_dirigido_{k}"] = a_porcentaje(v)
+    if hasattr(targeted_sentiment, "probas"):
+        for k, v in targeted_sentiment.probas.items():
+            out[f"prob_sent_dirigido_{k}"] = to_percentage(v)
 
     if debug:
         print(f"  -> [{frag['titulo']} #{frag['fragmento']}] listo")
@@ -160,27 +162,28 @@ def analizar_fragmento(frag: Dict[str, Any], az, debug=False) -> Dict[str, Any]:
 # ────────────────────────────────────────────────────────────────────────────────
 # Main
 # ────────────────────────────────────────────────────────────────────────────────
-
 def main():
     args = parse_arguments()
     print("*" * 8 + " Iniciando análisis " + "*" * 8)
     in_path = Path(args.input)
     out_path = Path(args.output)
-    frags = cargar_fragmentos(in_path, debug=args.debug)
-    az = cargar_analizadores()
-    resultados = [analizar_fragmento(f, az, debug=args.debug) for f in frags]
+    frags = _load_fragments(in_path, debug=args.debug)
+    analyzers = _load_analyzers()
+    resultados = [_analyze_fragments(f, analyzers, debug=args.debug) for f in frags]
     df = pd.DataFrame(resultados)
     df.to_csv(out_path, index=False)
     print(f"\nAnálisis completado: {len(df)} fragmentos -> {out_path}\n")
     if args.debug:
         print(df.head())
 
-def analizar_textos(input_file: str, output_file: str, debug: bool = False) -> None:
-    frags = cargar_fragmentos(Path(input_file), debug=debug)
-    az = cargar_analizadores()
-    resultados = [analizar_fragmento(f, az, debug=debug) for f in frags]
-    pd.DataFrame(resultados).to_csv(output_file, index=False)
-    print(f"[analizar_textos] {len(resultados)} fragmentos -> {output_file}")
+def analyze_texts(input_file: str, output_file: str, debug: bool = False) -> None:
+    frags = _load_fragments(Path(input_file), debug=debug)
+    analyzers = _load_analyzers()
+
+    results = [ _analyze_fragments(frag, analyzers, debug=debug) for frag in frags ]
+    pd.DataFrame(results).to_csv(output_file, index=False)
+
+    print(f"[analizar_textos] {len(results)} fragmentos -> {output_file}")
 
 if __name__ == "__main__":
     main()
