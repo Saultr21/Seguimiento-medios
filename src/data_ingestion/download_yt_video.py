@@ -8,7 +8,6 @@ import logging
 from pytubefix import Channel, YouTube
 
 from config.cargar_config import cargar_config
-from utils.file_utils import clean_temp_files
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -152,9 +151,7 @@ def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: 
 # ════════════════════════════════════════════════
 if __name__ == "__main__":
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    TRANSCRIPCIONES_DIR.mkdir(parents=True, exist_ok=True)
     URL_CANAL = config["youtube_channel_url"]
     PALABRA = config["youtube_keyword"]
     LIMITE = config["video_limit"]
     download_videos_from_channel(URL_CANAL, PALABRA, LIMITE)
-    clean_temp_files()
