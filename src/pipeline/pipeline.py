@@ -39,33 +39,30 @@ def pipeline(
     mention_keywords: List[str],
     podcast_limit: int,
     single_video_urls: List[str],
-    transcription_folder_str: str,
-    json_output_path_str: str,
-    csv_output_path_str: str,
     only_transcribe: bool = False,
     whisper_language: str = "",
 ):
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
     current_progress = 0
 
-    # Usar paths pasados como argumentos
-    transcription_folder = Path(transcription_folder_str)
-    json_output_path = Path(json_output_path_str)
-    csv_output_path = Path(csv_output_path_str)
+    config = load_config()
+
+    # Recogemos las rutas para los archivos.
+    audio_folder = Path(config['audio_folder'])
+    transcription_folder = Path(config["transcripciones_dir"])
+    json_output_path = Path(config["json_output_path"])
+    csv_output_path = Path(config["csv_output_path"])
 
     # Eliminar archivos de salida anteriores si existen (carpeta o fichero).
     clean_temp_files(transcription_folder)
     json_output_path.unlink(missing_ok=True)
     csv_output_path.unlink(missing_ok=True)
 
-    # ════════════════════════════════════════════════
-    # Carga de modelos (Whisper o cualquiera).
-    # ════════════════════════════════════════════════
-    config = load_config()
-
+    # Carga de modelo ASR.
     transcription_model = ASRFactory.load_nemo_asr(config)
-    transcription_service = TranscriptionService(transcription_folder_str, transcription_model)
+    transcription_service = TranscriptionService(str(transcription_folder), transcription_model)
 
+    # Carga de cliente de LLM.
     llm_model = LLMClient(config["llm_url"], config["llm_model"])
     llm_service = LLMService(llm_model)
     
@@ -140,7 +137,7 @@ def pipeline(
     # Paso 1.5: Descargar y transcribir podcasts de El Espejo Canario
     if podcast_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1.5: Descargar y Transcribir Podcasts (Límite: {podcast_limit}) ===", flush=True)
-        downloaded_videos = download_espejocanario_podcasts(podcast_limit)
+        downloaded_videos = download_espejocanario_podcasts(audio_folder, podcast_limit)
 
         for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']
@@ -221,9 +218,11 @@ def run():
 
     parser.add_argument("video_limit", type=int)
 
-    parser.add_argument("transcripciones_dir")
-    parser.add_argument("json_output_path")
-    parser.add_argument("csv_output_path")
+    """
+        transcripciones_dir,
+        json_output_path,
+        csv_output_path,
+    """
 
     parser.add_argument("mention_keywords_str", nargs="?", default="")
     parser.add_argument("podcast_limit", type=int)
@@ -257,9 +256,6 @@ def run():
         mention_keywords_list,
         args.podcast_limit,
         single_video_urls_list,
-        args.transcripciones_dir,
-        args.json_output_path,
-        args.csv_output_path,
         only_transcribe,
         whisper_language
     )

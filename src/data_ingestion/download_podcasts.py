@@ -3,7 +3,6 @@ import re
 import warnings
 from pathlib import Path
 from typing import List
-from config.load_config import load_config
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp
@@ -11,30 +10,17 @@ import yt_dlp
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # ════════════════════════════════════════════════
-# Configuración (env vars + defaults)
-# ════════════════════════════════════════════════
-config = load_config()
-
-AUDIO_DIR = Path(config["audio_dir"])
-_DEFAULT_PODCAST_LIMIT = 3  
-PODCAST_LIMIT_CONFIG = config.get("podcast_limit", _DEFAULT_PODCAST_LIMIT)
-
-if not isinstance(PODCAST_LIMIT_CONFIG, int) or PODCAST_LIMIT_CONFIG < 0:
-    print(f"Advertencia: El valor 'podcast_limit' de la configuración ('{PODCAST_LIMIT_CONFIG}') no es válido. Usando por defecto: {_DEFAULT_PODCAST_LIMIT}", flush=True)
-    PODCAST_LIMIT_CONFIG = _DEFAULT_PODCAST_LIMIT
-
-# ════════════════════════════════════════════════
 # Descarga de programas de El Espejo Canario
 # ════════════════════════════════════════════════
-def download_espejocanario_podcasts(quantity: int = 0) -> List[Path]:
+def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> List[Path]:
     if quantity == 0:
         print("Límite de podcasts establecido en 0. Omitiendo transcripción de podcasts.", flush=True)
         return
 
     print(f"Guardando hasta {quantity} programa(s) de podcast. Buscando programas en El Espejo Canario...", flush=True)
     base_url = "https://www.elespejocanario.es/programas/"
+    
     downloaded_files = []
-
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -84,7 +70,7 @@ def download_espejocanario_podcasts(quantity: int = 0) -> List[Path]:
             if len(clean_title) > 150:
                 clean_title = clean_title[:150]
 
-            output_template = AUDIO_DIR / f"{clean_title}.%(ext)s"
+            output_template = audio_folder / f"{clean_title}.%(ext)s"
 
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -105,7 +91,7 @@ def download_espejocanario_podcasts(quantity: int = 0) -> List[Path]:
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
-                    nombre_archivo_esperado_mp3 = AUDIO_DIR / f"{clean_title}.mp3"
+                    nombre_archivo_esperado_mp3 = audio_folder / f"{clean_title}.mp3"
 
                     if nombre_archivo_esperado_mp3.exists():
                         downloaded_files.append({ "name": clean_title, "path": nombre_archivo_esperado_mp3 })
@@ -139,4 +125,4 @@ def download_espejocanario_podcasts(quantity: int = 0) -> List[Path]:
 if __name__ == "__main__":
     podcast_quantity = 1    
     print(f"Ejecutando script de descarga de podcasts directamente. Cantidad final a procesar: {podcast_quantity}", flush=True)
-    download_espejocanario_podcasts(podcast_quantity)
+    download_espejocanario_podcasts(Path("tmp/audios/"), podcast_quantity)

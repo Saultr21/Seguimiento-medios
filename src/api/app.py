@@ -45,21 +45,13 @@ async def ejecutar_stream(
 ):
     mention_keywords_str = ",".join(mention_keywords)
     single_video_urls_str = ",".join(filter(None, single_video_urls)) 
-
-    # Usar valores proporcionados por el formulario
-    transcripciones_dir = config["transcripciones_dir"]
-    json_output_path = config["json_output_path"]
-    csv_output_path = config["csv_output_path"]
-
+    
     start_time = time.time()
     cmd = [    
         "run-pipeline",
         channel_url,
         channel_keyword,
         str(video_limit),
-        transcripciones_dir,
-        json_output_path,
-        csv_output_path,
         mention_keywords_str,
         str(podcast_limit),
         single_video_urls_str,
