@@ -1,10 +1,10 @@
 import re
 
-def limpiar_texto(texto):
-    texto = re.sub(r"\[.*?\]", "", texto)
-    texto = re.sub(r"\n+", "\n", texto.strip())
-    texto = re.sub(r"(\w)\n(\w)", r"\1 \2", texto)
-    texto = re.sub(r"\s+([.,;!?])", r"\1", texto)
-    texto = re.sub(r"\.{3,}", " ", texto)
+def clean_text(text):
+    text = re.sub(r"\[.*?\]", "", text)
+    text = re.sub(r"\n+", "\n", text.strip())
+    text = re.sub(r"(\w)\n(\w)", r"\1 \2", text)
+    text = re.sub(r"\s+([.,;!?])", r"\1", text)
+    text = re.sub(r"\.{3,}", " ", text)
 
-    return texto
+    return text

@@ -1,6 +1,6 @@
 from pathlib import Path
 from asr.base_asr import BaseASR
-from utils.text_utils import limpiar_texto
+from utils.text_utils import clean_text
 from utils.file_utils import write_file
 
 class TranscriptionService:
@@ -20,11 +20,11 @@ class TranscriptionService:
 
         print(f"  Iniciando transcripción para: {base_name} (esto puede tardar)...", flush=True)
         try:
-            texto_transcrito = self._transcription_model.transcribe(str(mp3_path), audio_language=language)
+            transcribed_text = self._transcription_model.transcribe(str(mp3_path), audio_language=language)
             print(f"  Transcripción completada para: {base_name}.", flush=True)
             
-            texto_limpio = limpiar_texto(texto_transcrito)
-            self._save_transcription(self._transcription_dir, base_name, texto_limpio)
+            clean_text = clean_text(transcribed_text)
+            self._save_transcription(self._transcription_dir, base_name, clean_text)
 
         except Exception as e:
             print(f"  Error durante la transcripción del vídeo {base_name}: {e}", flush=True)

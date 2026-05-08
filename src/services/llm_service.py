@@ -34,15 +34,15 @@ class LLMService:
 
         return chunks
     
-    def _save_results(self, salida_json, origen_txt, fragmentos):
+    def _save_results(self, json_output_path, input_path, fragments):
         try:
-            key = os.path.splitext(os.path.basename(origen_txt))[0].lower() 
+            key = os.path.splitext(os.path.basename(input_path))[0].lower() 
 
-            data = read_json_file(salida_json) or {}
-            data[key] = list(dict.fromkeys(data.get(key, []) + fragmentos))
+            data = read_json_file(json_output_path) or {} # Si el archivo no tiene contenido, recogemos un diccionario vacío.
+            data[key] = list(dict.fromkeys(data.get(key, []) + fragments))
 
-            write_json_file(salida_json, data)
-            print(f"Resultados añadidos a '{salida_json}' bajo la clave '{key}'.")
+            write_json_file(json_output_path, data)
+            print(f"Resultados añadidos a '{json_output_path}' bajo la clave '{key}'.")
         except Exception as e:
             print(f"Problema encontrado al guardar los resultados: {e}")
 
@@ -100,6 +100,9 @@ class LLMService:
         headers = { "Content-Type": "application/json" }
         relevant_fragments = self._search_relevant_fragments(chunks, keywords,  headers)
         
-        if relevant_fragments:
-            print(f"Fragmentos relevantes encontrados: { len(relevant_fragments) }")
-            self._save_results(json_output_path, input_path, relevant_fragments)
+        if len(relevant_fragments) == 0:
+            print("No se ha encontrado ningún fragmento relevante. No se guardarán archivos.")
+            return
+        
+        print(f"Fragmentos relevantes encontrados: { len(relevant_fragments) }")
+        self._save_results(json_output_path, input_path, relevant_fragments)
