@@ -7,18 +7,8 @@ from typing import List, Dict
 import logging
 from pytubefix import Channel, YouTube
 
-from config.load_config import load_config
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("transformers").setLevel(logging.ERROR)
-
-# ════════════════════════════════════════════════
-# Configuración (env vars + defaults)
-# ════════════════════════════════════════════════
-config = load_config()
-
-AUDIO_DIR = Path(config["audio_dir"])
-TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
 
 # ════════════════════════════════════════════════
 # Utilidades
@@ -69,15 +59,15 @@ def filter_channel_videos(channel_url: str, keyword: str, limit: int) -> List[Di
     print(f"Se encontraron {len(selected_videos)} vídeos.", flush=True)
     return selected_videos
 
-def download_audio(stream, base_name: str) -> Path | None:
+def download_audio(stream, base_name: str, audio_folder: Path) -> Path | None:
     if stream is None:
         return
     
     tmp_name = f"tmp_{base_name}.mp3"
-    out_path = AUDIO_DIR / f"{tmp_name}"
+    out_path = audio_folder / f"{tmp_name}"
 
     try:
-        stream.download(output_path=AUDIO_DIR, filename=tmp_name)
+        stream.download(output_path=audio_folder, filename=tmp_name)
         return out_path
     except Exception as e:  
         print(f"Error al descargar audio: {e}")
@@ -86,7 +76,7 @@ def download_audio(stream, base_name: str) -> Path | None:
 # ════════════════════════════════════════════════
 # Flujo principal
 # ════════════════════════════════════════════════
-def download_yt_video(video_url: str) -> None:
+def download_yt_video(video_url: str, audio_folder: Path) -> None:
     """
     Descarga un único vídeo de YouTube, especificado en el parámetro `video_url`.
     """
@@ -98,26 +88,21 @@ def download_yt_video(video_url: str) -> None:
     print(f"\nProcesando vídeo único desde URL: {video_url}", flush=True)
     try:
         yt_video = YouTube(video_url)
-        titulo = yt_video.title
+        title = yt_video.title
         
-        base_name = generate_filename(titulo)
-        print(f"  Procesando vídeo: {titulo}", flush=True)
+        base_name = generate_filename(title)
+        print(f"  Procesando vídeo: {title}", flush=True)
         print(f"  Nombre base para archivos: {base_name}", flush=True)
-
-        path_transcripcion_existente = TRANSCRIPCIONES_DIR / f"{base_name}.txt"
-        if path_transcripcion_existente.exists():
-            print(f"  La transcripción para '{base_name}' ya existe. Omitiendo.", flush=True)
-            return base_name, mp3_path
 
         audio_stream = yt_video.streams.filter(only_audio=True).first()
         if not audio_stream:
-            print(f"  No se encontró stream de audio para el vídeo: {titulo}. Se omite.", flush=True)
+            print(f"  No se encontró stream de audio para el vídeo: {title}. Se omite.", flush=True)
             return
 
-        mp3_path = download_audio(audio_stream, base_name)
+        mp3_path = download_audio(audio_stream, base_name, audio_folder)
 
         if mp3_path is None:
-            print(f"  Vídeo '{titulo}' sin audio o error de descarga; se omite.", flush=True)
+            print(f"  Vídeo '{title}' sin audio o error de descarga; se omite.", flush=True)
             return
 
         return base_name, mp3_path
@@ -150,8 +135,7 @@ def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: 
 # Ejecución standalone
 # ════════════════════════════════════════════════
 if __name__ == "__main__":
-    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    URL_CANAL = config["youtube_channel_url"]
-    PALABRA = config["youtube_keyword"]
-    LIMITE = config["video_limit"]
-    download_videos_from_channel(URL_CANAL, PALABRA, LIMITE)
+    download_yt_video(
+        "https://www.youtube.com/watch?v=Bedcrn0BaZk",
+        Path("tmp/audios/")
+    )

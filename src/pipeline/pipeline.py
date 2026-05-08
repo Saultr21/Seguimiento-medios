@@ -49,7 +49,7 @@ def pipeline(
 
     # Recogemos las rutas para los archivos.
     audio_folder = Path(config['audio_folder'])
-    transcription_folder = Path(config["transcripciones_dir"])
+    transcription_folder = Path(config["transcription_folder"])
     json_output_path = Path(config["json_output_path"])
     csv_output_path = Path(config["csv_output_path"])
 
@@ -108,7 +108,7 @@ def pipeline(
 
             try:
                 print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(single_video_urls) } ({ video_url })...")
-                base_name, mp3_path = download_yt_video(video_url)
+                base_name, mp3_path = download_yt_video(video_url, audio_folder)
                 transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
             except Exception as e:
                 print(f"  Error al procesar vídeo único en {video_url}: {e}", flush=True)
@@ -217,12 +217,6 @@ def run():
     parser.add_argument("channel_keyword")
 
     parser.add_argument("video_limit", type=int)
-
-    """
-        transcripciones_dir,
-        json_output_path,
-        csv_output_path,
-    """
 
     parser.add_argument("mention_keywords_str", nargs="?", default="")
     parser.add_argument("podcast_limit", type=int)
