@@ -2,7 +2,7 @@ import os
 import torch
 import re
 
-def _resolve_device_and_dtype():
+def resolve_device_and_dtype():
     """
     Devuelve (device_str, dtype_or_none, pipeline_device_int).
     pipeline_device_int es -1 para CPU o índice de CUDA (0,1,...)

@@ -6,14 +6,14 @@ import os
 import gc
 
 from asr.base_asr import BaseASR
-from config.torch_config import _resolve_device_and_dtype
+from config.torch_config import resolve_device_and_dtype
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models.aed_multitask_models import EncDecMultiTaskModel
 from nemo.utils import logging as nemo_logging
 
 nemo_logging.set_verbosity(nemo_logging.ERROR) # Solo se hará log de errores.
 
-class _NemoASR(BaseASR):
+class NemoASR(BaseASR):
     def __init__(self, config):
         self._model, self._device = self._load_model(config)
         self._warmup()
@@ -34,7 +34,7 @@ class _NemoASR(BaseASR):
         })
         model.change_decoding_strategy(decoding_cfg)
         
-        device, _, _ = _resolve_device_and_dtype()
+        device, _, _ = resolve_device_and_dtype()
 
         if "cuda" in device:
             model = model.half()

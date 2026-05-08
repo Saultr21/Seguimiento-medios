@@ -6,14 +6,14 @@ from transformers import (
 )
 
 from .base_asr import BaseASR
-from config.torch_config import _resolve_device_and_dtype
+from config.torch_config import resolve_device_and_dtype
 
-class _WhisperASR(BaseASR):
+class WhisperASR(BaseASR):
     def __init__(self, config):
         self._model = self._load_model(config)
     
     def _load_model(self, config):
-        _DEVICE, _DTYPE, _PIPELINE_DEVICE = _resolve_device_and_dtype()
+        _DEVICE, _DTYPE, _PIPELINE_DEVICE = resolve_device_and_dtype()
         WHISPER_MODEL_ID = config["whisper_model_url"]
 
         try:
