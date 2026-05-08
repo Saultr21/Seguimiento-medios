@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 
-def clean_temp_files(AUDIO_DIR: Path) -> None:
-    for f in AUDIO_DIR.glob("tmp_*.mp3"):
+def clean_temp_files(dir: Path) -> None:
+    for f in dir.glob("*"):
         try:
             f.unlink()
         except Exception as e:

@@ -18,10 +18,10 @@ from nlp.sentiment_analysis import analyze_texts
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-def limpiar_carpeta(ruta_carpeta: Path):
+def clean_folder(path: Path):
     """Elimina todo el contenido de una carpeta, pero no la carpeta misma."""
-    if ruta_carpeta.exists() and ruta_carpeta.is_dir():
-        for item_path in ruta_carpeta.iterdir():
+    if path.exists() and path.is_dir():
+        for item_path in path.iterdir():
             try:
                 if item_path.is_file() or item_path.is_symlink():
                     item_path.unlink()
@@ -29,38 +29,34 @@ def limpiar_carpeta(ruta_carpeta: Path):
                     shutil.rmtree(item_path)
             except Exception as e:
                 print(f"Error al eliminar {item_path}: {e}", flush=True)
-    elif not ruta_carpeta.exists():
-        ruta_carpeta.mkdir(parents=True, exist_ok=True)
+    elif not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
 
-def flujo_completo(
-    channel_url: str, 
-    channel_keyword: str, 
-    video_limit: int, 
-    mention_keywords: List[str], 
-    podcast_limit: int, 
+def pipeline(
+    channel_url: str,
+    channel_keyword: str,
+    video_limit: int,
+    mention_keywords: List[str],
+    podcast_limit: int,
     single_video_urls: List[str],
-    transcripciones_dir_str: str,
+    transcription_folder_str: str,
     json_output_path_str: str,
     csv_output_path_str: str,
     only_transcribe: bool = False,
     whisper_language: str = "",
 ):
-    # only_transcribe se recibe como parámetro opcional (bool)
-
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
     current_progress = 0
 
     # Usar paths pasados como argumentos
-    transcripciones_folder = Path(transcripciones_dir_str)
+    transcription_folder = Path(transcription_folder_str)
     json_output_path = Path(json_output_path_str)
     csv_output_path = Path(csv_output_path_str)
 
-    # Eliminar archivos de salida anteriores si existen
+    # Eliminar archivos de salida anteriores si existen (carpeta o fichero).
+    clean_temp_files(transcription_folder)
     json_output_path.unlink(missing_ok=True)
     csv_output_path.unlink(missing_ok=True)
-
-    limpiar_carpeta(transcripciones_folder)
-    transcripciones_folder.mkdir(parents=True, exist_ok=True)
 
     # ════════════════════════════════════════════════
     # Carga de modelos (Whisper o cualquiera).
@@ -68,7 +64,7 @@ def flujo_completo(
     config = cargar_config()
 
     transcription_model = ASRFactory.load_nemo_asr(config)
-    transcription_service = TranscriptionService(str(transcripciones_folder), transcription_model)
+    transcription_service = TranscriptionService(transcription_folder_str, transcription_model)
 
     llm_model = LLMClient(config["llm_url"], config["llm_model"])
     llm_service = LLMService(llm_model)
@@ -176,7 +172,7 @@ def flujo_completo(
     else:
         # Paso 2: Extraer contextos con Window-Sliding
         print(f"\nPROGRESS:{current_progress}:=== Paso 2: Extraer Contextos con Window Sliding ===", flush=True)
-        archivos_transcripcion = list(transcripciones_folder.glob("*.txt"))
+        archivos_transcripcion = list(transcription_folder.glob("*.txt"))
         total_archivos = len(archivos_transcripcion)
         progreso_ws_base = current_progress
         progreso_ws_rango = 25
@@ -204,7 +200,7 @@ def flujo_completo(
     print("\nPROGRESS:100:=== Flujo de Trabajo Completado ===", flush=True)
     if only_transcribe:
         # En modo solo transcripción no generamos JSON/CSV de análisis
-        print(f"Resultados: transcripciones guardadas en: {transcripciones_folder}", flush=True)
+        print(f"Resultados: transcripciones guardadas en: {transcription_folder}", flush=True)
     else:
         # Solo notificamos CSV disponible cuando realmente se generó
         print(f"Resultados guardados en:\n- Fragmentos JSON: {json_output_path}\n- Análisis de Sentimientos CSV: {csv_output_path}", flush=True)
@@ -254,7 +250,7 @@ def run():
     only_transcribe = bool(args.only_transcribe)
     whisper_language = args.whisper_language or None
 
-    flujo_completo(
+    pipeline(
         args.channel_url,
         args.channel_keyword,
         args.video_limit,
