@@ -1,50 +1,17 @@
 import argparse
-import json
 from pathlib import Path
 from typing import List, Dict, Any
 import logging
 import pandas as pd
 from pysentimiento import create_analyzer
 
-from config.load_config import load_config
 from utils.file_utils import read_json_file
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
-config = load_config()
-
-# ────────────────────────────────────────────────────────────────────────────────
-# Utilidades CLI
-# ────────────────────────────────────────────────────────────────────────────────
-def parse_arguments() -> argparse.Namespace:
-    """Procesa los argumentos de línea de comandos."""
-    parser = argparse.ArgumentParser(
-        description="Analiza textos con pysentimiento."
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        default=config["json_output_path"],
-        help="Archivo JSON de entrada",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        default=config["csv_output_path"],
-        help="Archivo CSV de salida",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Activa mensajes de depuración detallados",
-    )
-    return parser.parse_args()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ────────────────────────────────────────────────────────────────────────────────
-
 to_percentage = lambda p: f"{p * 100:.2f}%"  
 
 # Diccionarios de traducción
@@ -162,20 +129,6 @@ def _analyze_fragments(frag: Dict[str, Any], az, debug=False) -> Dict[str, Any]:
 # ────────────────────────────────────────────────────────────────────────────────
 # Main
 # ────────────────────────────────────────────────────────────────────────────────
-def main():
-    args = parse_arguments()
-    print("*" * 8 + " Iniciando análisis " + "*" * 8)
-    in_path = Path(args.input)
-    out_path = Path(args.output)
-    frags = _load_fragments(in_path, debug=args.debug)
-    analyzers = _load_analyzers()
-    resultados = [_analyze_fragments(f, analyzers, debug=args.debug) for f in frags]
-    df = pd.DataFrame(resultados)
-    df.to_csv(out_path, index=False)
-    print(f"\nAnálisis completado: {len(df)} fragmentos -> {out_path}\n")
-    if args.debug:
-        print(df.head())
-
 def analyze_texts(input_file: str, output_file: str, debug: bool = False) -> None:
     frags = _load_fragments(Path(input_file), debug=debug)
     analyzers = _load_analyzers()
@@ -184,6 +137,3 @@ def analyze_texts(input_file: str, output_file: str, debug: bool = False) -> Non
     pd.DataFrame(results).to_csv(output_file, index=False)
 
     print(f"[analizar_textos] {len(results)} fragmentos -> {output_file}")
-
-if __name__ == "__main__":
-    main()
