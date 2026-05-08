@@ -30,44 +30,9 @@ for dir_path in [AUDIO_DIR, TRANSCRIPCIONES_DIR]:
     dir_path.mkdir(parents=True, exist_ok=True)
 
 # ════════════════════════════════════════════════
-# Carga única del modelo Whisper
-# ════════════════════════════════════════════════
-transcription_model = ASRFactory.load_whisper_asr(config)
-
-# ════════════════════════════════════════════════
-# Utilidades
-# ════════════════════════════════════════════════
-def _obtener_cantidad_valida(env_var_key: str, config_limit: int, fallback_default: int) -> int:
-    """
-    Obtiene y valida la cantidad de programas a procesar.
-    Prioridad: Variable de entorno > Configuración > Fallback default.
-    """
-    cantidad_str = os.getenv(env_var_key)
-    cantidad_final = config_limit  
-
-    if cantidad_str is not None:
-        try:
-            cantidad_env = int(cantidad_str)
-            if cantidad_env >= 0:
-                print(f"Se usará la cantidad de la variable de entorno {env_var_key}: {cantidad_env}", flush=True)
-                return cantidad_env
-            else:
-                print(f"Advertencia: {env_var_key} ('{cantidad_str}') es negativo. Se usará el límite de la configuración: {config_limit}", flush=True)
-        except ValueError:
-            print(f"Advertencia: {env_var_key} ('{cantidad_str}') no es un número válido. Se usará el límite de la configuración: {config_limit}", flush=True)
-    elif config_limit != fallback_default:  
-        print(f"No se encontró la variable de entorno {env_var_key}. Se usará el límite de la configuración: {config_limit}", flush=True)
-
-    if not isinstance(cantidad_final, int) or cantidad_final < 0:
-        print(f"Advertencia: La cantidad de configuración ('{cantidad_final}') no es válida. Usando el valor por defecto global: {fallback_default}", flush=True)
-        return fallback_default
-
-    return cantidad_final
-
-# ════════════════════════════════════════════════
 # Descarga de programas de El Espejo Canario
 # ════════════════════════════════════════════════
-def descargar_programas_espejo_canario(cantidad: int = 0) -> List[Path]:
+def download_espejocanario_podcasts(cantidad: int = 0) -> List[Path]:
     if cantidad == 0:
         print("Límite de podcasts establecido en 0. Omitiendo transcripción de podcasts.", flush=True)
         return
@@ -178,10 +143,6 @@ def descargar_programas_espejo_canario(cantidad: int = 0) -> List[Path]:
 # Ejecución standalone
 # ════════════════════════════════════════════════
 if __name__ == "__main__":
-    cantidad_a_procesar = _obtener_cantidad_valida(
-        env_var_key="CANTIDAD_PROGRAMAS",
-        config_limit=PODCAST_LIMIT_CONFIG,
-        fallback_default=_DEFAULT_PODCAST_LIMIT
-    )
-        
-    print(f"Ejecutando script de descarga de podcasts directamente. Cantidad final a procesar: {cantidad_a_procesar}", flush=True)
+    podcast_quantity = 1    
+    print(f"Ejecutando script de descarga de podcasts directamente. Cantidad final a procesar: {podcast_quantity}", flush=True)
+    download_espejocanario_podcasts(podcast_quantity)

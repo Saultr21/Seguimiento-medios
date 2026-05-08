@@ -1,12 +1,17 @@
 from pathlib import Path
 from asr.base_asr import BaseASR
 from utils.text_utils import limpiar_texto
-from utils.file_utils import guardar_transcripcion
+from utils.file_utils import write_file
 
 class TranscriptionService:
     def __init__(self, transcription_dir: str, transcription_model: BaseASR):
         self._transcription_dir = transcription_dir
         self._transcription_model = transcription_model
+
+    def _save_transcription(self, transcription_dir: str, basename: str, text: str):
+        path = Path(transcription_dir + f"/{basename}.txt")
+        write_file(path, text)
+        print(f"Transcripción guardada en: {path}", flush=True)
 
     def transcribe_audio(self, base_name: str, mp3_path: Path, language: str):
         """
@@ -19,7 +24,7 @@ class TranscriptionService:
             print(f"  Transcripción completada para: {base_name}.", flush=True)
             
             texto_limpio = limpiar_texto(texto_transcrito)
-            guardar_transcripcion(self._transcription_dir, base_name, texto_limpio)
+            self._save_transcription(self._transcription_dir, base_name, texto_limpio)
 
         except Exception as e:
             print(f"  Error durante la transcripción del vídeo {base_name}: {e}", flush=True)

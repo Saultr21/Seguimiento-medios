@@ -10,8 +10,8 @@ from asr.asr_factory import ASRFactory
 from llm import LLMClient
 from services.llm_service import LLMService
 from services.transcription_service import TranscriptionService
-from data_ingestion.descarga_videos_yt import download_videos_from_channel, download_yt_video
-from data_ingestion.descarga_podcast_espejocanario import descargar_programas_espejo_canario
+from data_ingestion.download_yt_video import download_videos_from_channel, download_yt_video
+from data_ingestion.download_podcasts import download_espejocanario_podcasts
 from utils.file_utils import clean_temp_files
 from nlp.analisis_pysentimiento_json import analizar_textos  
 
@@ -144,7 +144,7 @@ def flujo_completo(
     # Paso 1.5: Descargar y transcribir podcasts de El Espejo Canario
     if podcast_limit > 0:
         print(f"\nPROGRESS:{current_progress}:=== Paso 1.5: Descargar y Transcribir Podcasts (Límite: {podcast_limit}) ===", flush=True)
-        downloaded_videos = descargar_programas_espejo_canario(podcast_limit)
+        downloaded_videos = download_espejocanario_podcasts(podcast_limit)
 
         for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']

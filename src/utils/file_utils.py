@@ -1,11 +1,6 @@
 from pathlib import Path
 import json
 
-def guardar_transcripcion(transcription_dir: str, nombre: str, texto: str) -> 0:
-    path = Path(transcription_dir + f"/{nombre}.txt")
-    path.write_text(texto, encoding="utf-8")
-    print(f"Transcripción guardada en: {path}", flush=True)
-
 def clean_temp_files(AUDIO_DIR: Path) -> None:
     for f in AUDIO_DIR.glob("tmp_*.mp3"):
         try:
@@ -16,6 +11,10 @@ def clean_temp_files(AUDIO_DIR: Path) -> None:
 def read_file(path):
     with open(path, 'r', encoding='utf-8') as f:
         return f.read()
+
+def write_file(path, text: str):
+    with open(path, 'w', encoding='utf-8') as f:
+        return f.write(text)
 
 def read_json_file(path):
     try:

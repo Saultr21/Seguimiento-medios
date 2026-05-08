@@ -26,14 +26,14 @@ WHISPER_MODEL_ID = config["whisper_model_url"]
 # Utilidades
 # ════════════════════════════════════════════════
 
-def generar_nombre_base_para_video(titulo_video: str) -> str:
+def generate_filename(title: str) -> str:
     """Genera un nombre base limpio para archivos a partir del título de un vídeo."""
-    m = re.search(r"Telenoticias\s+(\d+)\s+[|]??\s*(\d{2})/(\d{2})/(\d{2})", titulo_video)
+    m = re.search(r"Telenoticias\s+(\d+)\s+[|]??\s*(\d{2})/(\d{2})/(\d{2})", title)
     if m:
         num, dd, mm, yy = m.groups()
         base = f"{dd}-{mm}-{yy}.{num}"
     else:
-        base = re.sub(r'[\\/*?:"<>|]', "", titulo_video)
+        base = re.sub(r'[\\/*?:"<>|]', "", title)
         base = re.sub(r"\s+", "_", base).strip()
         if len(base) > 100:
             base = base[:100]
@@ -44,35 +44,35 @@ def generar_nombre_base_para_video(titulo_video: str) -> str:
 # ════════════════════════════════════════════════
 # YouTube helpers
 # ════════════════════════════════════════════════
-def filtrar_videos(channel_url: str, keyword: str, limite: int) -> List[Dict]:
+def filter_channel_videos(channel_url: str, keyword: str, limit: int) -> List[Dict]:
     if not keyword or len(keyword.strip()) == 0:
-        print(f"No se proporcionó palabra clave; tomando los últimos {limite} vídeos del canal...", flush=True)
+        print(f"No se proporcionó palabra clave; tomando los últimos {limit} vídeos del canal...", flush=True)
         selected_videos = []
         channel = Channel(channel_url)
         for i, vid in enumerate(channel.videos):
             selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
-            if len(selected_videos) >= limite:
+            if len(selected_videos) >= limit:
                 break
         print(f"Se seleccionaron {len(selected_videos)} vídeos (ultimos del canal).", flush=True)
         return selected_videos
 
-    print(f"Buscando hasta {limite} vídeos con ‘{keyword}’ en el título…", flush=True)
+    print(f"Buscando hasta {limit} vídeos con ‘{keyword}’ en el título…", flush=True)
     
     selected_videos = []
     channel = Channel(channel_url)
     for i, vid in enumerate(channel.videos):
         if keyword.lower() in vid.title.lower():
             selected_videos.append({"titulo": vid.title, "video_url": vid.watch_url})
-            if len(selected_videos) >= limite:
+            if len(selected_videos) >= limit:
                 break
         
-        if i >= 99: # Máximo de 100 vídeos revisados.
+        if i >= 99: # Máximo de 100 vídeos revisados.   
             break
     
     print(f"Se encontraron {len(selected_videos)} vídeos.", flush=True)
     return selected_videos
 
-def descargar_audio(stream, base_name: str) -> Path | None:
+def download_audio(stream, base_name: str) -> Path | None:
     if stream is None:
         return
     
@@ -103,7 +103,7 @@ def download_yt_video(video_url: str) -> None:
         yt_video = YouTube(video_url)
         titulo = yt_video.title
         
-        base_name = generar_nombre_base_para_video(titulo)
+        base_name = generate_filename(titulo)
         print(f"  Procesando vídeo: {titulo}", flush=True)
         print(f"  Nombre base para archivos: {base_name}", flush=True)
 
@@ -117,7 +117,7 @@ def download_yt_video(video_url: str) -> None:
             print(f"  No se encontró stream de audio para el vídeo: {titulo}. Se omite.", flush=True)
             return
 
-        mp3_path = descargar_audio(audio_stream, base_name)
+        mp3_path = download_audio(audio_stream, base_name)
 
         if mp3_path is None:
             print(f"  Vídeo '{titulo}' sin audio o error de descarga; se omite.", flush=True)
@@ -131,7 +131,7 @@ def download_yt_video(video_url: str) -> None:
 
 
 def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: int = 3):
-    vids = filtrar_videos(channel_url, keyword, limite_videos)
+    vids = filter_channel_videos(channel_url, keyword, limite_videos)
     print(f"\nProcesando {len(vids)} vídeo(s) del canal…", flush=True)
 
     downloaded_videos = []
