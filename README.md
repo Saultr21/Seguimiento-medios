@@ -9,8 +9,8 @@ Herramienta de análisis automatizado de medios de comunicación. Descarga, tran
 Esta aplicación permite monitorizar medios audiovisuales de forma automatizada. A partir de una URL de canal de YouTube y/o el feed de podcast de El Espejo Canario:
 
 1. **Descarga** los vídeos o episodios más recientes.
-2. **Transcribe** el audio a texto mediante el modelo Whisper (`openai/whisper-large-v3-turbo`).
-3. **Extrae fragmentos relevantes** mediante una técnica de ventana deslizante (*window sliding*), filtrando por palabras clave configurables.
+2. **Transcribe** el audio a texto mediante el modelo de ASR (en este momento, por defecto, `nvidia/canary-1b-v2`).
+3. **Extrae fragmentos relevantes** utilizando chunking por el número de palabras y pasando el texto a un LLM que filtra las frases donde se encuentren unas palabras clave configurables.
 4. **Analiza el sentimiento y las emociones** de cada fragmento usando `pysentimiento`.
 5. **Exporta los resultados** a un CSV descargable directamente desde la interfaz web.
 
@@ -22,22 +22,65 @@ El flujo completo se ejecuta desde una interfaz web sencilla servida con FastAPI
 
 ```
 Seguimiento-medios/
-├── app.py                            # Servidor FastAPI + endpoints web
-├── ejecucion.py                      # Orquestador del flujo completo
-├── descarga_videos_yt.py             # Descarga y transcripción de YouTube (yt-dlp + Whisper)
-├── descarga_podcast_espejocanario.py # Descarga y transcripción del podcast El Espejo Canario
-├── peticion_window_sliding.py        # Extracción de contextos con ventana deslizante
-├── analisis_pysentimiento_json.py    # Análisis de sentimientos/emociones
-├── config/
-│   ├── config.json                   # Configuración de rutas y modelos
-│   └── cargar_config.py              # Cargador de configuración
-├── templates/
-│   └── index.html                    # Interfaz web
-├── static/
-│   └── style.css                     # Estilos
-├── transcripciones/                  # Transcripciones generadas (se limpian en cada ejecución)
+├── .env                              # Variables de entorno. Archivo no creado por defecto
+├── .env.example                      # Ejemplo de configuración de entorno
+├── .gitignore
+├── comandos.txt                      # Referencia de comandos útiles
+├── pyproject.toml                    # Configuración del proyecto y dependencias
+├── README.md
 ├── requirements.txt
-└── comandos.txt                      # Referencia de comandos útiles
+│
+├── src/
+│   ├── __init__.py
+│   │
+│   ├── api/                          # API y servidor web
+│   │   ├── app.py                    # Servidor FastAPI + endpoints web
+│   │   └── __init__.py
+│   │
+│   ├── asr/                          # Sistemas ASR (Speech-to-Text)
+│   │   ├── asr_factory.py            # Factory para seleccionar motor ASR
+│   │   ├── base_asr.py               # Clase base abstracta ASR
+│   │   ├── nemo_asr.py               # Implementación ASR con NVIDIA NeMo
+│   │   ├── whisper_asr.py            # Implementación ASR con Whisper
+│   │   └── __init__.py
+│   │
+│   ├── config/                       # Configuración global del proyecto
+│   │   ├── load_config.py            # Carga de configuración general (.env)
+│   │   ├── torch_config.py           # Configuración de PyTorch/GPU
+│   │   └── __init__.py
+│   │
+│   ├── data_ingestion/               # Descarga e ingestión de contenido
+│   │   ├── download_podcasts.py      # Descarga de podcasts
+│   │   ├── download_yt_video.py      # Descarga de vídeos de YouTube
+│   │   └── __init__.py
+│   │
+│   ├── llm/                          # Clientes y utilidades LLM
+│   │   ├── llm_client.py             # Cliente para interacción con modelos LLM
+│   │   └── __init__.py
+│   │
+│   ├── nlp/                          # Procesamiento de lenguaje natural
+│   │   ├── sentiment_analysis.py     # Análisis de sentimientos/emociones
+│   │   └── __init__.py
+│   │
+│   ├── pipeline/                     # Orquestación del flujo principal
+│   │   ├── pipeline.py               # Pipeline principal de procesamiento
+│   │   └── __init__.py
+│   │
+│   ├── services/                     # Servicios de alto nivel
+│   │   ├── llm_service.py            # Servicio de interacción con LLMs
+│   │   ├── transcription_service.py  # Servicio de transcripción
+│   │   └── __init__.py
+│   │
+│   └── utils/                        # Utilidades auxiliares
+│       ├── file_utils.py             # Funciones auxiliares para ficheros
+│       ├── text_utils.py             # Utilidades de procesamiento de texto
+│       └── __init__.py
+│
+├── static/
+│   └── style.css                     # Estilos de la interfaz web
+│
+└── templates/
+    └── index.html                    # Interfaz web
 ```
 
 ---
@@ -45,9 +88,9 @@ Seguimiento-medios/
 ## Requisitos previos
 
 - Python 3.10 o superior
-- GPU recomendada (CUDA) para acelerar la transcripción con Whisper
+- GPU recomendada (CUDA) para acelerar la transcripción
 - LLM local accesible vía API REST (configurable en `config.json`)
-- `ffmpeg` instalado y disponible en el PATH (requerido por `yt-dlp`)
+- `ffmpeg` instalado y disponible en el PATH (requerido por varias librerías)
 
 ---
 
@@ -62,7 +105,7 @@ cd Seguimiento-medios
 python -m venv venv
 
 # Windows
-venv\Scripts\activate.bat
+venv\Scripts\activate
 
 # Linux/macOS
 source venv/bin/activate
@@ -70,7 +113,10 @@ source venv/bin/activate
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. (Opcional) Instalar PyTorch con soporte CUDA 13.0
+# 4. Instalar proyecto como paquete editable (permite usar scripts personalizados)
+pip install -e .
+
+# 5. (Opcional) Instalar PyTorch con soporte CUDA (por ejemplo, 13.0)
 pip install --index-url https://download.pytorch.org/whl/cu130 \
     --extra-index-url https://pypi.org/simple torch
 ```
@@ -79,29 +125,32 @@ pip install --index-url https://download.pytorch.org/whl/cu130 \
 
 ## Configuración
 
-Edita el archivo `config/config.json` antes de arrancar la aplicación:
+Crea el archivo `.env`, copiando el contneido de `.env.example`. Edita su contenido antes de arrancar la aplicación para adaptarse a tu entorno:
 
-```json
-{
-    "transcripciones_dir": "./transcripciones",
-    "audio_dir": "./audios",
-    "json_output_path": "fragmentos.json",
-    "csv_output_path": "analisis_textos_json.csv",
-    "whisper_model_url": "openai/whisper-large-v3-turbo",
-    "llm_url": "http://192.168.1.60:1234/v1/chat/completions",
-    "podcast_limit": 1
-}
+```bash
+# Directorios y paths.
+AUDIOS_DIR=./tmp/audios
+TRANSCRIPTIONS_DIR=./tmp/transcriptions
+JSON_OUTPUT_PATH=./tmp/fragmentos.json
+CSV_OUTPUT_PATH=./tmp/analisis-textos-json.csv
+
+# Modelos y URLs.
+WHISPER_MODEL_URL=openai/whisper-large-v3-turbo
+NEMO_MODEL_URL=nvidia/canary-1b-v2
+LLM_URL=http://192.168.1.60:1234/v1/chat/completions
+LLM_MODEL=gemma-4-e2b
 ```
 
 | Parámetro | Descripción |
 |---|---|
-| `transcripciones_dir` | Carpeta donde se guardan las transcripciones en `.txt` |
-| `audio_dir` | Carpeta temporal para los audios descargados |
-| `json_output_path` | Fichero JSON intermedio con los fragmentos extraídos |
-| `csv_output_path` | Fichero CSV de salida con el análisis de sentimientos |
-| `whisper_model_url` | Modelo Whisper a utilizar para la transcripción |
-| `llm_url` | URL de la API REST del LLM local (compatible con OpenAI) |
-| `podcast_limit` | Número máximo de podcasts a procesar por defecto |
+| `AUDIOS_DIR` | Carpeta temporal para los audios descargados |
+| `TRANSCRIPTIONS_DIR` | Carpeta donde se guardan las transcripciones en `.txt` |
+| `JSON_OUTPUT_PATH` | Fichero JSON intermedio con los fragmentos extraídos |
+| `CSV_OUTPUT_PATH` | Fichero CSV de salida con el análisis de sentimientos |
+| `WHISPER_MODEL_URL` | Modelo Whisper a utilizar para la transcripción |
+| `NEMO_MODEL_URL` | Modelo de NeMO utilizado para la transcripción (opción por defecto actual) |
+| `LLM_URL` | URL de la API REST del LLM local (compatible con OpenAI). El valor por defecto proviene de LM Studio. |
+| `LLM_MODEL` | Modelo de LLM que se está utilizando actualmente. |
 
 ---
 
@@ -110,14 +159,14 @@ Edita el archivo `config/config.json` antes de arrancar la aplicación:
 ### Arrancar el servidor
 
 ```bash
-uvicorn app:app --host 0.0.0.0 --reload --log-level debug
+start-server
 ```
 
 Accede a la interfaz en [http://localhost:8000](http://localhost:8000).
 
 > Si el puerto 8000 está ocupado:
 > ```bash
-> python -m uvicorn app:app --host 127.0.0.1 --port 8001 --reload --log-level debug
+> start-server --port 8001
 > ```
 
 ### Interfaz web
@@ -146,9 +195,7 @@ Una vez completado el análisis, aparece un botón en la interfaz para descargar
 ```
 Inicio
   │
-  ├─▶ [Opcional] Vídeos individuales (URLs sueltas)
-  │
-  ├─▶ Paso 1: Descarga y transcripción de YouTube (yt-dlp + Whisper)
+  ├─▶ Paso 1: Descarga y transcripción de YouTube, con URLs individuales o a través de canales (pytubefix + ASR)
   │
   ├─▶ Paso 1.5: Descarga y transcripción de podcasts (El Espejo Canario)
   │
@@ -181,5 +228,6 @@ Inicio
 ## Notas
 
 - Las transcripciones anteriores se eliminan automáticamente al iniciar cada nueva ejecución.
-- El LLM local configurado en `llm_url` se utiliza en el proceso de extracción de contextos (window sliding). Debe estar activo y accesible antes de lanzar el análisis completo.
-- Se recomienda disponer de GPU para tiempos de transcripción razonables con `whisper-large-v3-turbo`.
+- El LLM local configurado en `LLM_URL` debe estar activo y accesible antes de lanzar el análisis completo.
+- Se recomienda disponer de GPU para tiempos de transcripción razonables con los modelos de transcripción. La opción por defecto con NeMo es un poco pesada, así que si el equipo va lento, se puede cambiar al modelo de Whisper, que resulta más ligero.
+    - Si el rendimiento sigue siendo malo, lo mejor que se puede hacer es poner vídeos cortos (<10 minutos).
