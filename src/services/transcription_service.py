@@ -23,8 +23,8 @@ class TranscriptionService:
             transcribed_text = self._transcription_model.transcribe(str(mp3_path), audio_language=language)
             print(f"  Transcripción completada para: {base_name}.", flush=True)
             
-            clean_text = clean_text(transcribed_text)
-            self._save_transcription(self._transcription_dir, base_name, clean_text)
+            cleaned_text = clean_text(transcribed_text)
+            self._save_transcription(self._transcription_dir, base_name, cleaned_text)
 
         except Exception as e:
             print(f"  Error durante la transcripción del vídeo {base_name}: {e}", flush=True)
