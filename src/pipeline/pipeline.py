@@ -5,7 +5,7 @@ import shutil
 from typing import List
 import argparse
 
-from config.cargar_config import cargar_config
+from config.load_config import load_config
 from asr.asr_factory import ASRFactory
 from llm import LLMClient
 from services.llm_service import LLMService
@@ -61,7 +61,7 @@ def pipeline(
     # ════════════════════════════════════════════════
     # Carga de modelos (Whisper o cualquiera).
     # ════════════════════════════════════════════════
-    config = cargar_config()
+    config = load_config()
 
     transcription_model = ASRFactory.load_nemo_asr(config)
     transcription_service = TranscriptionService(transcription_folder_str, transcription_model)

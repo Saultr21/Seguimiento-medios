@@ -3,7 +3,7 @@ import re
 import warnings
 from pathlib import Path
 from typing import List
-from config.cargar_config import cargar_config
+from config.load_config import load_config
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp
@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # ════════════════════════════════════════════════
 # Configuración (env vars + defaults)
 # ════════════════════════════════════════════════
-config = cargar_config()
+config = load_config()
 
 AUDIO_DIR = Path(config["audio_dir"])
 _DEFAULT_PODCAST_LIMIT = 3  

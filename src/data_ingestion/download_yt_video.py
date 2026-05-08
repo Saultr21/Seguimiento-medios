@@ -7,7 +7,7 @@ from typing import List, Dict
 import logging
 from pytubefix import Channel, YouTube
 
-from config.cargar_config import cargar_config
+from config.load_config import load_config
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -15,7 +15,7 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 # ════════════════════════════════════════════════
 # Configuración (env vars + defaults)
 # ════════════════════════════════════════════════
-config = cargar_config()
+config = load_config()
 
 AUDIO_DIR = Path(config["audio_dir"])
 TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])

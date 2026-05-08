@@ -6,11 +6,11 @@ import logging
 import pandas as pd
 from pysentimiento import create_analyzer
 
-from config.cargar_config import cargar_config
+from config.load_config import load_config
 from utils.file_utils import read_json_file
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
-config = cargar_config()
+config = load_config()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Utilidades CLI

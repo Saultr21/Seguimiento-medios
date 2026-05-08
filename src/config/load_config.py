@@ -3,7 +3,7 @@ import os
 
 load_dotenv()
 
-def cargar_config() -> dict:
+def load_config() -> dict:
     """Carga el archivo de configuración en ".env"."""
 
     return {

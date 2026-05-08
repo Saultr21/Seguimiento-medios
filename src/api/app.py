@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from typing import List, Optional
-from config.cargar_config import cargar_config
+from config.load_config import load_config
 import subprocess
 import sys
 import io
@@ -15,11 +15,14 @@ import argparse
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Cargar configuración
-config = cargar_config()
+config = load_config()
+
 # Crear la instancia de la aplicación FastAPI
 app = FastAPI()
+
 #Crear carpeta static para los estilos
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Ruta para servir el archivo HTML
 templates = Jinja2Templates(directory="templates")
 
