@@ -1,11 +1,9 @@
 from __future__ import annotations
-import os
 import re
 import warnings
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from config.cargar_config import cargar_config
-from asr.asr_factory import ASRFactory
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp
@@ -18,7 +16,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 config = cargar_config()
 
 AUDIO_DIR = Path(config["audio_dir"])
-TRANSCRIPCIONES_DIR = Path(config["transcripciones_dir"])
 _DEFAULT_PODCAST_LIMIT = 3  
 PODCAST_LIMIT_CONFIG = config.get("podcast_limit", _DEFAULT_PODCAST_LIMIT)
 
@@ -26,20 +23,17 @@ if not isinstance(PODCAST_LIMIT_CONFIG, int) or PODCAST_LIMIT_CONFIG < 0:
     print(f"Advertencia: El valor 'podcast_limit' de la configuración ('{PODCAST_LIMIT_CONFIG}') no es válido. Usando por defecto: {_DEFAULT_PODCAST_LIMIT}", flush=True)
     PODCAST_LIMIT_CONFIG = _DEFAULT_PODCAST_LIMIT
 
-for dir_path in [AUDIO_DIR, TRANSCRIPCIONES_DIR]:
-    dir_path.mkdir(parents=True, exist_ok=True)
-
 # ════════════════════════════════════════════════
 # Descarga de programas de El Espejo Canario
 # ════════════════════════════════════════════════
-def download_espejocanario_podcasts(cantidad: int = 0) -> List[Path]:
-    if cantidad == 0:
+def download_espejocanario_podcasts(quantity: int = 0) -> List[Path]:
+    if quantity == 0:
         print("Límite de podcasts establecido en 0. Omitiendo transcripción de podcasts.", flush=True)
         return
 
-    print(f"Guardando hasta {cantidad} programa(s) de podcast. Buscando programas en El Espejo Canario...", flush=True)
+    print(f"Guardando hasta {quantity} programa(s) de podcast. Buscando programas en El Espejo Canario...", flush=True)
     base_url = "https://www.elespejocanario.es/programas/"
-    archivos_descargados_final = []
+    downloaded_files = []
 
     try:
         headers = {
@@ -54,14 +48,14 @@ def download_espejocanario_podcasts(cantidad: int = 0) -> List[Path]:
         if not articles:
             return []
         
-        print(f"Se encontraron {len(articles)} artículos. Procesando hasta {cantidad or 'todos'}.", flush=True)
+        print(f"Se encontraron {len(articles)} artículos. Procesando hasta {quantity or 'todos'}.", flush=True)
         
-        ivoox_links_con_titulos = []
-        articulos_a_procesar = articles[:cantidad] if cantidad is not None else articles
+        ivoox_links = []
+        articulos_a_procesar = articles[:quantity] if quantity is not None else articles
 
         for i, article in enumerate(articulos_a_procesar):
-            titulo_tag = article.find('h2', class_='entry-title')
-            titulo_programa = titulo_tag.a.text.strip() if titulo_tag and titulo_tag.a else f"Programa Desconocido {i+1}"
+            title_tag = article.find('h2', class_='entry-title')
+            program_title = title_tag.a.text.strip() if title_tag and title_tag.a else f"Programa Desconocido {i+1}"
             
             iframe = article.find('iframe', {'src': lambda x: x and 'ivoox.com' in x})
             if iframe:
@@ -70,27 +64,27 @@ def download_espejocanario_podcasts(cantidad: int = 0) -> List[Path]:
                 if match:
                     audio_id = match.group(1)
                     ivoox_url = f"https://www.ivoox.com/audios-mp3_rf_{audio_id}_1.html"
-                    ivoox_links_con_titulos.append({"url": ivoox_url, "titulo_original": titulo_programa})
-                    print(f"  Encontrado enlace iVoox para '{titulo_programa}'", flush=True)
+                    ivoox_links.append({"url": ivoox_url, "program_title": program_title})
+                    print(f"  Encontrado enlace iVoox para '{program_title}'", flush=True)
                 else:
-                    print(f"  No se pudo extraer ID de iVoox del iframe para '{titulo_programa}'", flush=True)
+                    print(f"  No se pudo extraer ID de iVoox del iframe para '{program_title}'", flush=True)
             else:
-                print(f"  No se encontró iframe de iVoox para '{titulo_programa}'.", flush=True)
+                print(f"  No se encontró iframe de iVoox para '{program_title}'.", flush=True)
         
-        if not ivoox_links_con_titulos:
+        if len(ivoox_links) == 0:
             print("No se encontraron enlaces válidos de iVoox para descargar.", flush=True)
             return []
         
-        print(f"\nIniciando descarga de { len(ivoox_links_con_titulos) } audio", flush=True)
+        print(f"\nIniciando descarga de { len(ivoox_links) } audio", flush=True)
         
-        for item in ivoox_links_con_titulos:
+        for item in ivoox_links:
             url = item["url"]
-            titulo_limpio = re.sub(r'[\\/*?:"<>|]', '_', item["titulo_original"])
-            titulo_limpio = re.sub(r'\s+', '_', titulo_limpio).strip('_')
-            if len(titulo_limpio) > 150:
-                titulo_limpio = titulo_limpio[:150]
+            clean_title = re.sub(r'[\\/*?:"<>|]', '_', item["program_title"])
+            clean_title = re.sub(r'\s+', '_', clean_title).strip('_')
+            if len(clean_title) > 150:
+                clean_title = clean_title[:150]
 
-            output_template = AUDIO_DIR / f"{titulo_limpio}.%(ext)s"
+            output_template = AUDIO_DIR / f"{clean_title}.%(ext)s"
 
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -107,30 +101,30 @@ def download_espejocanario_podcasts(cantidad: int = 0) -> List[Path]:
                 'noplaylist': True,
             }
             
-            print(f"  Intentando descargar: '{item['titulo_original']}'", flush=True)
+            print(f"  Intentando descargar: '{item['program_title']}'", flush=True)
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
-                    nombre_archivo_esperado_mp3 = AUDIO_DIR / f"{titulo_limpio}.mp3"
+                    nombre_archivo_esperado_mp3 = AUDIO_DIR / f"{clean_title}.mp3"
 
                     if nombre_archivo_esperado_mp3.exists():
-                        archivos_descargados_final.append({ "name": titulo_limpio, "path": nombre_archivo_esperado_mp3 })
+                        downloaded_files.append({ "name": clean_title, "path": nombre_archivo_esperado_mp3 })
                         print(f"    Audio descargado y convertido a MP3: {nombre_archivo_esperado_mp3.name}", flush=True)
                     else:
-                        print(f"    Descarga completada para '{item['titulo_original']}', pero el archivo MP3 esperado ({nombre_archivo_esperado_mp3.name}) no se encontró directamente. Verificar manualmente.", flush=True)
+                        print(f"    Descarga completada para '{item['program_title']}', pero el archivo MP3 esperado ({nombre_archivo_esperado_mp3.name}) no se encontró directamente. Verificar manualmente.", flush=True)
 
             except yt_dlp.utils.DownloadError as e_dl:
-                print(f"    Error de descarga de yt-dlp para '{item['titulo_original']}': {e_dl}", flush=True)
+                print(f"    Error de descarga de yt-dlp para '{item['program_title']}': {e_dl}", flush=True)
             
             except Exception as e:
-                print(f"    Error inesperado durante la descarga de '{item['titulo_original']}': {e}", flush=True)
+                print(f"    Error inesperado durante la descarga de '{item['program_title']}': {e}", flush=True)
         
-        if archivos_descargados_final:
-            print(f"\nDescarga de podcasts completada. Se obtuvieron { len(archivos_descargados_final) } audios.", flush=True)
-        else:
+        if len(downloaded_files) == 0:
             print("\nNo se descargó ningún audio de podcast.", flush=True)
+        else:
+            print(f"\nDescarga de podcasts completada. Se obtuvieron { len(downloaded_files) } audios.", flush=True)
         
-        return archivos_descargados_final
+        return downloaded_files
     
     except requests.exceptions.RequestException as e_req:
         print(f"Error de conexión al buscar programas: {e_req}", flush=True)
