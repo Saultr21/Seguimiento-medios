@@ -4,7 +4,7 @@ import json
 def clean_temp_files(dir: Path) -> None:
     for f in dir.glob("*"):
         try:
-            f.unlink()
+            if f.is_file(): f.unlink()
         except Exception as e:
             print(f"No se pudo borrar el fichero {f}: {e}")
 

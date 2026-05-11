@@ -153,7 +153,7 @@ def pipeline(
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
     print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales ===", flush=True)
     try:
-        clean_temp_files(Path(config['audio_dir']))
+        clean_temp_files(Path(config['audio_folder']))
         print("Limpieza de archivos temporales de audio completada.", flush=True)
     except Exception as e:
         print(f"Error durante la limpieza de temporales: {e}", flush=True)
