@@ -199,10 +199,10 @@ def pipeline(
         # En modo solo transcripción no generamos JSON/CSV de análisis
         print(f"Resultados: transcripciones guardadas en: {transcription_folder}", flush=True)
     else:
-        # Solo notificamos CSV disponible cuando realmente se generó
-        print(f"Resultados guardados en:\n- Fragmentos JSON: {json_output_path}\n- Análisis de Sentimientos CSV: {csv_output_path}", flush=True)
         # Marcar para frontend que el CSV está listo
         if Path(csv_output_path).exists() and Path(csv_output_path).stat().st_size > 0:
+            # Solo notificamos CSV disponible cuando realmente se generó
+            print(f"Resultados guardados en:\n- Fragmentos JSON: {json_output_path}\n- Análisis de Sentimientos CSV: {csv_output_path}\n", flush=True)
             print("CSV_AVAILABLE:1", flush=True)
         else:
             print("CSV_AVAILABLE:0", flush=True)
