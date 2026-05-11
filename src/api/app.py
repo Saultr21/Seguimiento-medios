@@ -26,7 +26,8 @@ app = FastAPI()
 
 #Crear carpeta static para los estilos
 app.mount("/static", StaticFiles(directory="static"), name="static")
-gr.mount_gradio_app(app, demo, "/gradio", css_paths=["static/style.css"])
+
+gr.mount_gradio_app(app, demo.queue(), "/gradio", css_paths=["static/style.css"])
 
 # Ruta para servir el archivo HTML
 templates = Jinja2Templates(directory="templates")
@@ -58,7 +59,7 @@ async def ejecutar_stream(
         channel_keyword,
         str(video_limit),
         mention_keywords_str,
-        str(podcast_limit),
+        str(podcast_limit), 
         single_video_urls_str,
         str(int(bool(only_transcribe))),
         whisper_language

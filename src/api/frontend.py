@@ -45,6 +45,26 @@ def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
 
     return None
 
+def _progress_html(pct: int, *, danger: bool = False, done: bool = False) -> str:
+    pct = max(0, min(100, pct))
+    if danger:
+        color = "bg-danger"
+    elif done:
+        color = "bg-success"
+    else:
+        color = "bg-primary progress-bar-striped progress-bar-animated"
+ 
+    return f"""
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <div class="progress" style="height:24px;">
+        <div class="progress-bar {color}" role="progressbar"
+            style="width:{pct}%; transition: width 0.4s ease;" aria-valuenow="{pct}"
+            aria-valuemin="0" aria-valuemax="100">
+            {pct}%
+        </div>
+        </div>
+    """
+
 # ── Line processor ────────────────────────────────────────────────────────────
 def process_line(line, state):
     """
@@ -53,7 +73,7 @@ def process_line(line, state):
     """
 
     if line.startswith("PROGRESS:"): # Línea de progreso.
-        _, pct, message = line.split(":")
+        _, pct, message = line.split(":", 2)
         state['pct'] = int(pct)
         state['output_text'] += (message + "\n")
 
@@ -68,13 +88,6 @@ def process_line(line, state):
         return
 
     state['output_text'] += (line + "\n") # Líneas de "print" normales.
-
-def update_download_visibility(visible: bool):
-    return gr.update(
-        elem_id="download_btn",
-        visible=visible,
-    )
-
 
 # ── Main generator ────────────────────────────────────────────────────────────
 def run_pipeline(
@@ -102,11 +115,11 @@ def run_pipeline(
     )
 
     if error:
-        yield error, 0, update_download_visibility(False)
+        yield error, _progress_html(0), gr.update(visible=False)
         return
 
-    state = state = {
-        'output_text': [],
+    state = {
+        'output_text': "",
         'pct': 0,
         'csv_available': False,
     }
@@ -123,35 +136,34 @@ def run_pipeline(
 
             for line in response.iter_lines(decode_unicode=True):
                 stripped_line = line.strip()
-                if stripped_line is None: continue
+                if not stripped_line: continue
 
                 process_line(stripped_line, state)
                 yield (
-                    state.output_text,
-                    state['pct'],
-                    update_download_visibility(state.csv_available),
+                    state['output_text'],
+                    _progress_html(state['pct']),
+                    gr.update(visible=False)
                 )
 
     except requests.RequestException as exc:
         state['output_text'] += f"❌ Error de conexión: {exc}"
 
         yield (
-            state.output_text,
-            0,
-            update_download_visibility(state.csv_available),
+            state['output_text'],
+            _progress_html(0),
+            gr.update(visible=False)
         )
 
         return
 
-    success = "Proceso terminado con código: 0" in state.output_text
+    success = "Proceso terminado con código: 0" in state['output_text']
 
+    csv_available = success and "CSV_AVAILABLE:1" in state['output_text']
     yield (
-        state.output_text,
-        100 if success else state['pct'],
-        update_download_visibility(state.csv_available),
+        state['output_text'],
+        _progress_html(100 if success else state['pct']),
+        gr.update(visible=csv_available)
     )
-
-    ########
 
 # ── Interfaz Gradio ───────────────────────────────────────────────────────────
 with gr.Blocks(title="Análisis de Medios") as demo:
@@ -236,9 +248,9 @@ with gr.Blocks(title="Análisis de Medios") as demo:
 
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
-        progress_bar  = gr.Slider(0, 100, 0, step=1, interactive=False, label="Progreso de pipeline")
+        progress_bar = gr.HTML(_progress_html(0))
         download_btn = gr.DownloadButton("Descargar CSV", value="tmp/analisis-textos-json.csv", elem_id="download_btn", variant="secondary", visible=False)
-        output_box    = gr.Textbox(
+        output_box = gr.Textbox(
             label="Resultado",
             lines=18,
             interactive=False,
@@ -260,6 +272,3 @@ with gr.Blocks(title="Análisis de Medios") as demo:
         ],
         outputs=[output_box, progress_bar, download_btn],
     )
-
-if __name__ == "__main__":
-    demo.launch(server_name="localhost", server_port=7860, show_error=True)
