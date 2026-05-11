@@ -9,10 +9,37 @@ from .base_asr import BaseASR
 from config.torch_config import resolve_device_and_dtype
 
 class WhisperASR(BaseASR):
+    """
+    Clase que implementa la transcripción utilizando los modelos Whisper de OpenAI, como:
+    - `whisper-large-v3`
+    - `whisper-large-v3-turbo`
+    """
+
     def __init__(self, config):
+        """
+        Inicializa el modelo de transcripción de Whisper.
+
+        Args:
+            config(dict):
+                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+        """
         self._model = self._load_model(config)
     
     def _load_model(self, config):
+        """
+        Inicializa y configura el modelo Whisper.
+        
+        Args:
+            config (dict):
+                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+
+        Returns:
+            tuple:
+                A tuple containing:
+                    - model: modelo de NeMo ASR cargado
+                    - device (str): dispositivo utilizado para la transcripción ("cuda" o "cpu")
+        """
+
         _DEVICE, _DTYPE, _PIPELINE_DEVICE = resolve_device_and_dtype()
         WHISPER_MODEL_ID = config["whisper_model_url"]
 
@@ -44,14 +71,25 @@ class WhisperASR(BaseASR):
             print(f"[INFO] cuda_available: {torch.cuda.is_available()}", flush=True)
             print(f"[INFO] dispositivo elegido: {_DEVICE} (pipeline_device={_PIPELINE_DEVICE})", flush=True)
 
-            return ASR_PIPE
+            return ASR_PIPE, _DEVICE
         except Exception as e:
             print(f"[WARN] No se pudo inicializar el pipeline ASR: {e}", flush=True)
-            return None
+            return None, None
     
     def transcribe(self, audio_path: str, audio_language: str):
         """
-        Transcribe audio usando el "pipeline". Si `forced_language` se proporciona (p.ej. 'english'), se calcula `forced_decoder_ids` localmente y se pasa a generate_kwargs para forzar el idioma.
+        Transcribe un archivo de audio utilizando el modelo de Whisper y devuelve el texto.
+
+        Args:
+            audio_path (str):
+                Ruta al archivo de audio para transcribir.
+
+            audio_language (str):
+                Código del idioma hablado en el audio.
+
+        Returns:
+            str:
+                La transcripción del texto.
         """
         
         if self._model is None:

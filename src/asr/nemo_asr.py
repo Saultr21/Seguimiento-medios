@@ -14,12 +14,37 @@ from nemo.utils import logging as nemo_logging
 nemo_logging.set_verbosity(nemo_logging.ERROR) # Solo se hará log de errores.
 
 class NemoASR(BaseASR):
+    """
+    Clase que implementa la transcripción utilizando los modelos ASR de NeMo Toolkit (NVIDIA), como:
+    - `canary-1b-flash`
+    - `canary-1b-v2`
+    """
+
     def __init__(self, config):
+        """
+        Inicializa el modelo de transcripción de NeMo.
+
+        Args:
+            config(dict):
+                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+        """
         self._model, self._device = self._load_model(config)
         self._warmup()
     
     def _load_model(self, config):
-        # Carga del modelo.
+        """
+        Inicializa y configura el modelo de ASR de NeMo.
+        
+        Args:
+            config (dict):
+                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+
+        Returns:
+            tuple:
+                A tuple containing:
+                    - model: modelo de NeMo ASR cargado
+                    - device (str): dispositivo utilizado para la transcripción ("cuda" o "cpu")
+        """
         model: EncDecMultiTaskModel = ASRModel.from_pretrained(model_name=config['nemo_model_url'])
         
         decoding_cfg = DictConfig({
@@ -54,7 +79,9 @@ class NemoASR(BaseASR):
         return model, device
     
     def _flush_memory(self):
-        """Libera memoria RAM y VRAM tras operaciones pesadas."""
+        """
+        Libera memoria RAM y VRAM tras operaciones pesadas, llamando al recolector de basura y a limpiar el caché de CUDA.
+        """
         gc.collect()  # Forzamos a funcionar al recolector de basura de Python.
 
         if "cuda" in self._device:
@@ -62,13 +89,29 @@ class NemoASR(BaseASR):
             torch.cuda.ipc_collect()
 
     def _warmup(self):
+        """
+        Realiza una inferencia para "calentamiento" con un audio silencioso.
+
+        Básicamente, se ejecuta tras cargar el modelo como primera inferencia para que las siguientes vayan más rápido.
+        """
         dummy = np.zeros(16000, dtype=np.float32)  # 1 segundo de silencio.
         self._model.transcribe(audio=[dummy], source_lang="es", target_lang="es", task="asr", pnc="no")
         self._flush_memory()
 
     def transcribe(self, audio_path: str, audio_language: str):
         """
-        Transcribe audio usando el "pipeline". Si `forced_language` se proporciona (p.ej. 'english'), se calcula `forced_decoder_ids` localmente y se pasa a generate_kwargs para forzar el idioma.
+        Transcribe un archivo de audio utilizando un modelo de NeMo y devuelve el texto.
+
+        Args:
+            audio_path (str):
+                Ruta al archivo de audio para transcribir.
+
+            audio_language (str):
+                Código del idioma hablado en el audio. Si está puesto como "automático", se pondrá en español, ya que la transcripción automática no funciona muy bien.
+
+        Returns:
+            str:
+                La transcripción del texto.
         """
         
         if self._model is None:
@@ -80,27 +123,34 @@ class NemoASR(BaseASR):
         with torch.inference_mode():
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=is_cuda):
                 print("Iniciando transcripción...")
+                if audio_language is None or audio_language == "es":
+                    language = "es"
+                else:
+                    language = "en"
+
                 result = self._model.transcribe(
                     audio=[audio_path],
                     batch_size=1,
-                    source_lang="es",  # Idioma de entrada
-                    target_lang="es",  # Idioma de salida
+                    source_lang=language,  # Idioma de entrada
+                    target_lang=language,  # Idioma de salida
                     task="asr",        # Tarea de reconocimiento de voz
                     pnc="yes",          # Incluir puntuación y mayúsculas
-                    chunk_len_in_secs=20.0, # Chunks de 40 segundos con 4 segundos de solapamiento.
+                    chunk_len_in_secs=20.0, # Chunks de 20 segundos con 4 segundos de solapamiento.
                     shift_len_in_secs=4.0,
                 )
 
                 print("Transcripción completada.")
-
-                if is_cuda:
-                    self._flush_memory()
+                self._flush_memory()
 
                 return result[0].text            
 
     def _to_mono(self, audio_path: str):
         """
-        Para que el modelo de Canary procese correctamente el audio, necesita que esté en mono. Este método usa ffmpeg para realizar esta transformación.
+        Para que el modelo de Canary procese correctamente el audio, necesita que esté en mono. Este método usa el comando de ffmpeg para realizar esta transformación.
+
+        Args:
+            audio_path (str):
+                Ruta al archivo de audio para transcribir. Será sobreescrita con el audio en mono.
         """
 
         try:
