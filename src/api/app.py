@@ -1,10 +1,14 @@
+from config.load_config import load_config
+from .frontend import demo
+import gradio as gr
+from fastapi.responses import RedirectResponse
+
 from fastapi import FastAPI, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from typing import List, Optional
-from config.load_config import load_config
 import subprocess
 import sys
 import io
@@ -22,6 +26,7 @@ app = FastAPI()
 
 #Crear carpeta static para los estilos
 app.mount("/static", StaticFiles(directory="static"), name="static")
+gr.mount_gradio_app(app, demo, "/gradio", css_paths=["static/style.css"])
 
 # Ruta para servir el archivo HTML
 templates = Jinja2Templates(directory="templates")
