@@ -1,16 +1,40 @@
 from llm import LLMClient
 from utils.file_utils import read_file, read_json_file, write_json_file
+from pathlib import Path
 
 import re
 import os
 
 class LLMService:
+    """
+    Servicio encargado de procesar transcripciones utilizando un modelo LLM.
+
+    Para ello:
+    - Divide el texto en fragmentos (chunks).
+    - Busca framentos relevantes con un LLM.
+    - Guarda los resultados (fragmentos) en un archivo JSON.
+    """
+
     def __init__(self, llm_model: LLMClient):
+        """
+        Inicializa el servicio con un cliente LLM.
+
+        Args:
+            llm_model (LLMClient): cliente (wrapper) para solicitudes para el LLM utilizado.
+        """
         self.llm_model = llm_model
     
-    def _chunking(self, text, chunk_size=850, overlap=150):
+    def _chunking(self, text: str, chunk_size=850, overlap=150):
         """
-        Crea chunks a partir de finales de frases para obtener texto reducido, con algo de overlap.
+        Divide un texto en fragmentos (chunks), utilizando solo frases completas. Por tanto, no se cortan frases a la mitad, y se incluye algo de solapamiento por palabras para preservar contetxo.
+
+        Args:
+            text (str): texto de entrada.
+            chunk_size (int): número aproximado de palabras por chunk.
+            overlap (int): número de palabras que se solapan entre chunks.
+
+        Returns:
+            list[str]: lista de fragmentos de texto.
         """
 
         sentences = re.split(r'(?<=[.!?])\s+', text) # Busca caracteres de final de línea.
@@ -34,7 +58,18 @@ class LLMService:
 
         return chunks
     
-    def _save_results(self, json_output_path, input_path, fragments):
+    def _save_results(self, json_output_path: Path, input_path: Path, fragments: list[str]):
+        """
+        Guarda los fragmentos encontrados en un archivo JSON.
+        
+        Si el archivo JSON ya existe, actualiza su contenido evitando duplicados.
+
+        Args:
+            json_output_path (Path): ruta del archivo JSON de salida.
+            input_path (str | Path): ruta del archivo de entrada (se usa como clave).
+            fragments (list[str]): fragmentos relevantes a guardar.
+        """
+        
         try:
             key = os.path.splitext(os.path.basename(input_path))[0].lower() 
 
@@ -46,7 +81,21 @@ class LLMService:
         except Exception as e:
             print(f"Problema encontrado al guardar los resultados: {e}", flush=True)
 
-    def _search_relevant_fragments(self, fragments, keywords, headers):
+    def _search_relevant_fragments(self, fragments: list[str], keywords: list[str], headers: dict):
+        """
+        Utiliza un modelo LLM para extraer fragmentos relevantes que contengan ciertas entidades o keywords.
+        
+        El modelo recibe cada chunk y devuelve frases completas que contienen menciones relevantes.
+
+        Args:
+            fragments (list[str]): lista de chunks de texto.
+            keywords (list[str]): palabras clave o entidades a buscar.
+            headers (dict): encabezados para la llamada HTTP al LLM.
+
+        Returns:
+            list[str]: lista de fragmentos relevantes únicos.
+        """
+
         keywords_str = ", ".join(keywords)
         
         system_prompt = """
@@ -90,7 +139,20 @@ class LLMService:
         
         return list(results)
     
-    def analize_transcription(self, input_path, json_output_path, keywords):
+    def analize_transcription(self, input_path: Path, json_output_path: Path, keywords: list[str]):
+        """
+        Método para llamada externa que procesa una transcripción completa:
+        - Lee el archivo de texto.
+        - Lo divide en chunks.
+        - Extrae fragmentos relevantes usando un LLM.
+        - Guarda los resultados en JSON.
+
+        Args:
+            input_path (Path): ruta del archivo de transcripción.
+            json_output_path (Path): ruta del archivo JSON de salida.
+            keywords (list[str]): lista de palabras clave o entidades a buscar.
+        """
+
         print(f"\nProcesando archivo: { os.path.basename(input_path) }", flush=True)
 
         text = read_file(input_path)
