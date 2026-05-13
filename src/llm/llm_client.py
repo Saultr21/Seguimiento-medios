@@ -2,11 +2,43 @@ import requests
 import json
 
 class LLMClient:
+    """
+    Cliente para interactuar con un modelo LLM vía API HTTP.
+
+    Envía prompts en formato chat (system + user) y devuelve las respuestas filtradas del modelo.
+    """
+
     def __init__(self, url: str, model: str):
+        """
+        Inicializa el cliente del LLM.
+
+        Args:
+            url (str): dirección HTTP (con endpoint) de la API del modelo.
+            model (str): nombre del modelo a utilizar para el LLM.
+        """
+
         self.url = url
         self.model = model
 
     def call(self, user_prompt: str, system_prompt: str, headers):
+        """
+        Realiza una llamada al modelo LLM y devuelve las respuestas válidas.
+
+        Para ello:
+        - Construye el payload en formato chat.
+        - Envía la petición HTTP POST.
+        - Filtra respuestas vacías o con "NINGUNO".
+        - Devuelve una lista de resultados válidos.
+
+        Args:
+            user_prompt (str): prompt del usuario.
+            system_prompt (str): prompt del sistema (instrucciones del modelo).
+            headers (dict): headers HTTP necesarios para la petición.
+
+        Returns:
+            list[str] | None: lista de respuestas del modelo o None si hay error HTTP.
+        """
+
         payload = {
             "model": self.model,
             "messages": [

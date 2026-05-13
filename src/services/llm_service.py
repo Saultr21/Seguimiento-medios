@@ -85,7 +85,7 @@ class LLMService:
         """
         Utiliza un modelo LLM para extraer fragmentos relevantes que contengan ciertas entidades o keywords.
         
-        El modelo recibe cada chunk y devuelve frases completas que contienen menciones relevantes.
+        El modelo recibe cada chunk y devuelve frases completas que contienen menciones relevantes. Las frases devueltas se dividen por un separador.
 
         Args:
             fragments (list[str]): lista de chunks de texto.
