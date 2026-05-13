@@ -42,9 +42,9 @@ class LLMService:
             data[key] = list(dict.fromkeys(data.get(key, []) + fragments))
 
             write_json_file(json_output_path, data)
-            print(f"Resultados añadidos a '{json_output_path}' bajo la clave '{key}'.")
+            print(f"Resultados añadidos a '{json_output_path}' bajo la clave '{key}'.", flush=True)
         except Exception as e:
-            print(f"Problema encontrado al guardar los resultados: {e}")
+            print(f"Problema encontrado al guardar los resultados: {e}", flush=True)
 
     def _search_relevant_fragments(self, fragments, keywords, headers):
         keywords_str = ", ".join(keywords)
@@ -69,7 +69,7 @@ class LLMService:
         results = set()
         for idx, frag in enumerate(fragments, 1):
             try:
-                print(f"Buscando fragmentos relevantes en el chunk [{ idx }/{ len(fragments) }].")
+                print(f"Buscando fragmentos relevantes en el chunk [{ idx }/{ len(fragments) }].", flush=True)
                 user_prompt = (
                     f"Entidades a buscar: {keywords_str}\n"
                     f"Fragmento de transcripción: \n{frag}"
@@ -82,27 +82,27 @@ class LLMService:
                         results.update(split.strip() for split in result_split)
                         
             except Exception as e:
-                print(f"Error procesando fragmento {idx}: {e}")
+                print(f"Error procesando fragmento {idx}: {e}", flush=True)
                 continue
 
         if len(results) < 1:
-            print("No se ha encontrado ninguna mención de las palabras clave.")
+            print("No se ha encontrado ninguna mención de las palabras clave.", flush=True)
         
         return list(results)
     
     def analize_transcription(self, input_path, json_output_path, keywords):
-        print(f"\nProcesando archivo: { os.path.basename(input_path) }")
+        print(f"\nProcesando archivo: { os.path.basename(input_path) }", flush=True)
 
         text = read_file(input_path)
         chunks = self._chunking(text)
-        print(f"El texto ha sido dividido en { len(chunks) } chunks.")
+        print(f"El texto ha sido dividido en { len(chunks) } chunks.", flush=True)
 
         headers = { "Content-Type": "application/json" }
         relevant_fragments = self._search_relevant_fragments(chunks, keywords,  headers)
         
         if len(relevant_fragments) == 0:
-            print("No se ha encontrado ningún fragmento relevante. No se guardarán archivos.")
+            print("No se ha encontrado ningún fragmento relevante. No se guardarán archivos.", flush=True)
             return
         
-        print(f"Fragmentos relevantes encontrados: { len(relevant_fragments) }")
+        print(f"Fragmentos relevantes encontrados: { len(relevant_fragments) }", flush=True)
         self._save_results(json_output_path, input_path, relevant_fragments)

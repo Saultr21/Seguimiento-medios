@@ -6,7 +6,7 @@ def clean_temp_files(dir: Path) -> None:
         try:
             if f.is_file(): f.unlink()
         except Exception as e:
-            print(f"No se pudo borrar el fichero {f}: {e}")
+            print(f"No se pudo borrar el fichero {f}: {e}", flush=True)
 
 def read_file(path):
     with open(path, 'r', encoding='utf-8') as f:

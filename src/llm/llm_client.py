@@ -28,5 +28,5 @@ class LLMClient:
                     continue
             return result
         else:
-            print(f"Ha habido un problema procesando la solicitud: HTTP {res.status_code}")
+            print(f"Ha habido un problema procesando la solicitud: HTTP {res.status_code}", flush=True)
             return None

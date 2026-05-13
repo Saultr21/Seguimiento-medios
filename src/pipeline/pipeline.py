@@ -107,7 +107,7 @@ def pipeline(
                 continue
 
             try:
-                print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(single_video_urls) } ({ video_url })...")
+                print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(single_video_urls) } ({ video_url })...", flush=True)
                 base_name, mp3_path = download_yt_video(video_url, audio_folder)
                 transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
             except Exception as e:
@@ -126,7 +126,7 @@ def pipeline(
 
         for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']
-            print(f"Procesando vídeo del canal {channel_url} { i+1 }/{ len(downloaded_videos) } ({ base_name })...")
+            print(f"Procesando vídeo del canal {channel_url} { i+1 }/{ len(downloaded_videos) } ({ base_name })...", flush=True)
             transcription_service.transcribe_audio(base_name, video_path, whisper_language)
 
         current_progress += 20
@@ -141,7 +141,7 @@ def pipeline(
 
         for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']
-            print(f"Procesando programa de El Espejo Canario { i+1 }/{ len(downloaded_videos) } ({ base_name })...")
+            print(f"Procesando programa de El Espejo Canario { i+1 }/{ len(downloaded_videos) } ({ base_name })...", flush=True)
             
             transcription_service.transcribe_audio(base_name, video_path, "spanish")
         

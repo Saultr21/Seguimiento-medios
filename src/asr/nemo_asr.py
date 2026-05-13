@@ -122,7 +122,7 @@ class NemoASR(BaseASR):
         is_cuda = "cuda" in self._device
         with torch.inference_mode():
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=is_cuda):
-                print("Iniciando transcripción...")
+                print("Iniciando transcripción...", flush=True)
                 if audio_language is None or audio_language == "es":
                     language = "es"
                 else:
@@ -139,7 +139,7 @@ class NemoASR(BaseASR):
                     shift_len_in_secs=4.0,
                 )
 
-                print("Transcripción completada.")
+                print("Transcripción completada.", flush=True)
                 self._flush_memory()
 
                 return result[0].text            
@@ -154,7 +154,7 @@ class NemoASR(BaseASR):
         """
 
         try:
-            print("Tratando de convertir archivo a mono...")
+            print("Tratando de convertir archivo a mono...", flush=True)
 
             tmp_audio_path = audio_path + ".tmp.mp3"
             result = subprocess.run(
@@ -166,9 +166,9 @@ class NemoASR(BaseASR):
             )
             os.replace(tmp_audio_path, audio_path)
 
-            print(f"Se ha convertido el archivo a mono: {result.returncode}.")
+            print(f"Se ha convertido el archivo a mono: {result.returncode}.", flush=True)
         except subprocess.CalledProcessError as e:
-            print(f"FFMPEG ha fallado con el código de error {e.returncode}.")
-            print(e.stderr)
+            print(f"FFMPEG ha fallado con el código de error {e.returncode}.", flush=True)
+            print(e.stderr, flush=True)
         except Exception as e:
-            print(f"Ha habido un fallo cambiando el formato del fichero {audio_path} a mono.")
+            print(f"Ha habido un fallo cambiando el formato del fichero {audio_path} a mono.", flush=True)

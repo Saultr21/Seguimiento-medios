@@ -35,7 +35,7 @@ def _load_fragments(path_json: Path, debug: bool = False) -> List[Dict[str, Any]
 
     data = read_json_file(path_json)
     if not data:
-        print(f"Error leyendo el archivo en {path_json}.")
+        print(f"Error leyendo el archivo en {path_json}.", flush=True)
 
     fragments = []
     for title, text_list in data.items():
@@ -52,14 +52,14 @@ def _load_fragments(path_json: Path, debug: bool = False) -> List[Dict[str, Any]
         raise SystemExit(f"¡Error! No se encontraron fragmentos en {path_json}")
 
     if debug:
-        print(f"› Se han generado { len(fragments) } fragmentos a partir de {len(data)} llaves")
+        print(f"› Se han generado { len(fragments) } fragmentos a partir de {len(data)} llaves", flush=True)
     return fragments
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Analizadores
 # ────────────────────────────────────────────────────────────────────────────────
 def _load_analyzers():
-    print("Cargando analizadores…", end=" ")
+    print("Cargando analizadores…", end=" ", flush=True)
     analyzers = {
         "sentiment": create_analyzer(task="sentiment", lang="es"),
         "emotion": create_analyzer(task="emotion", lang="es"),
@@ -122,7 +122,7 @@ def _analyze_fragments(frag: Dict[str, Any], az, debug=False) -> Dict[str, Any]:
             out[f"prob_sent_dirigido_{k}"] = to_percentage(v)
 
     if debug:
-        print(f"  -> [{frag['titulo']} #{frag['fragmento']}] listo")
+        print(f"  -> [{frag['titulo']} #{frag['fragmento']}] listo", flush=True)
 
     return out
 
@@ -136,4 +136,4 @@ def analyze_texts(input_file: str, output_file: str, debug: bool = False) -> Non
     results = [ _analyze_fragments(frag, analyzers, debug=debug) for frag in frags ]
     pd.DataFrame(results).to_csv(output_file, index=False)
 
-    print(f"[analizar_textos] {len(results)} fragmentos -> {output_file}")
+    print(f"[analizar_textos] {len(results)} fragmentos -> {output_file}", flush=True)

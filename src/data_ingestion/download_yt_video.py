@@ -70,7 +70,7 @@ def download_audio(stream, base_name: str, audio_folder: Path) -> Path | None:
         stream.download(output_path=audio_folder, filename=tmp_name)
         return out_path
     except Exception as e:  
-        print(f"Error al descargar audio: {e}")
+        print(f"Error al descargar audio: {e}", flush=True)
         return
 
 # ════════════════════════════════════════════════
@@ -121,7 +121,7 @@ def download_videos_from_channel(channel_url: str, keyword: str, limite_videos: 
         titulo = vid["titulo"]
         video_url = vid["video_url"]
         
-        print(f"\n--- Vídeo {i+1}/{len(vids)} ---")
+        print(f"\n--- Vídeo {i+1}/{len(vids)} ---", flush=True)
         try:
             base_name, mp3_path = download_yt_video(video_url)
             downloaded_videos.append({"name": base_name, "path": mp3_path})
