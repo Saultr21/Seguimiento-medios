@@ -4,8 +4,33 @@ import re
 
 def resolve_device_and_dtype():
     """
-    Devuelve (device_str, dtype_or_none, pipeline_device_int).
-    pipeline_device_int es -1 para CPU o índice de CUDA (0,1,...)
+    Determina automáticamente el dispositivo de ejecución y el tipo de dato óptimo.
+
+    Para ello:
+    - Detecta automáticamente disponibilidad de GPU CUDA.
+    - Selecciona `float16` en GPU para reducir uso de memoria.
+    - Usa `float32` en CPU para mantener compatibilidad.
+    - Permite forzar un dispositivo mediante la variable de entorno `FORCE_DEVICE`.
+
+    Variables de entorno soportadas:
+        FORCE_DEVICE=cpu
+        FORCE_DEVICE=cuda
+        FORCE_DEVICE=cuda:0
+        FORCE_DEVICE=cuda:1
+
+    Returns:
+        tuple[str, torch.dtype, int]:
+            Compuesto por:
+            - device_str:
+                Cadena compatible con PyTorch (ej. "cpu", "cuda:0").
+
+            - dtype:
+                Tipo de dato recomendado para inferencia (`torch.float16` o `torch.float32`).
+
+            - pipeline_device_int:
+                Índice entero compatible con pipelines de Hugging Face:
+                - `-1` para CPU
+                - `0`, `1`, etc. para GPUs CUDA
     """
 
     # Variable de entorno para forzar dispositivo, como "FORCE_DEVICE=cuda:0" o "FORCE_DEVICE=cpu".
@@ -18,9 +43,8 @@ def resolve_device_and_dtype():
         if m:
             idx = int(m.group(1)) if m.group(1) is not None else 0
             
-            # Si torch detecta cuda disponible usamos float16 por ahorro de memoria
-            dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-            return f"cuda:{idx}", dtype, idx
+            # Como deberíamos tener CUDA, usamos float16 por ahorro de memoria
+            return f"cuda:{idx}", torch.float16, idx
 
     # Detección automática de GPU, en caso de que no se haya forzado el dispositivo.
     if torch.cuda.is_available():
