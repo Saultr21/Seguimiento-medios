@@ -4,8 +4,7 @@ import gradio as gr
 import asyncio
 
 from fastapi import FastAPI, Form
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from typing import List, Optional
@@ -29,13 +28,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 gr.mount_gradio_app(app, demo.queue(), "/gradio", css_paths=["static/style.css"])
 
-# Ruta para servir el archivo HTML
-templates = Jinja2Templates(directory="templates")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=RedirectResponse)
 async def read_root(request: Request):
-    # Renderizar la plantilla HTML
-    return templates.TemplateResponse(request, "index.html", {"request": request})
+    # Redirigimos a la interfaz de Gradio
+    return RedirectResponse(url="/gradio", status_code=301)
 
 @app.post("/ejecutar")
 async def ejecutar_stream(

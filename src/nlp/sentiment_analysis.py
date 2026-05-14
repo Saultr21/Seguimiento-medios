@@ -12,6 +12,8 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 # ────────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ────────────────────────────────────────────────────────────────────────────────
+
+# Convierte probabilidades decimales a porcentajes con 2 decimales.
 to_percentage = lambda p: f"{p * 100:.2f}%"  
 
 # Diccionarios de traducción
@@ -59,6 +61,22 @@ def _load_fragments(path_json: Path, debug: bool = False) -> List[Dict[str, Any]
 # Analizadores
 # ────────────────────────────────────────────────────────────────────────────────
 def _load_analyzers():
+    """
+    Inicializa y carga los modelos de NLP de PySentimiento.
+
+    Se cargan analizadores para:
+    - Sentimiento
+    - Emociones
+    - Hate speech
+    - Reconocimiento de entidades (NER)
+    - Hate speech contextual
+    - Sentimiento dirigido
+
+    Returns:
+        dict:
+            Diccionario de analizadores inicializados.
+    """
+
     print("Cargando analizadores…", end=" ", flush=True)
     analyzers = {
         "sentiment": create_analyzer(task="sentiment", lang="es"),
