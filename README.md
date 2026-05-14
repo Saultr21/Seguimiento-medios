@@ -210,6 +210,25 @@ Inicio
 
 ---
 
+## Investigando: Dashboards
+
+Se está investigando la utilización de un dashboard de código abierto como Metabase.
+
+Para iniciar Metabase, se utiliza:
+```bash
+docker run -d -p 3000:3000 --name metabase metabase/metabase
+```
+
+Con esto, se puede acceder a la interfaz de Metabase usando a la dirección `localhost:3000`.
+
+```
+usuario: Usuario 1
+email: usuario1@cognitiatech.com
+contraseña: usuario1@cognitiatech.com
+```
+
+---
+
 ## Dependencias principales
 
 | Librería | Uso |
