@@ -1,5 +1,5 @@
 from pathlib import Path
-from asr.base_asr import BaseASR
+from asr import BaseASR
 from utils.text_utils import clean_text
 from utils.file_utils import write_file
 

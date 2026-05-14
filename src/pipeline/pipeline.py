@@ -6,7 +6,7 @@ from typing import List
 import argparse
 
 from config.load_config import load_config
-from asr.asr_factory import ASRFactory
+from asr import ASRFactory
 from llm import LLMClient
 from services.llm_service import LLMService
 from services.transcription_service import TranscriptionService
