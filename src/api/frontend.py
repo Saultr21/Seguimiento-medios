@@ -1,32 +1,22 @@
 import gradio as gr
 from urllib.parse import urlparse
-import requests
+import httpx
+import tempfile
  
 # ── Configuración ────────────────────────────────────────────────────────────
 BACKEND_URL = "http://localhost:8000"
 
-# ── Payload builder ───────────────────────────────────────────────────────────
-def build_params(channel_url, channel_keyword, video_limit, whisper_language,
-                 single_video_urls, podcast_limit, mention_keywords, only_transcribe):
-    
-    urls = [u.strip() for u in (single_video_urls or "").splitlines() if u.strip()]
-    kws  = [k.strip() for k in (mention_keywords  or "").splitlines() if k.strip()]
+def retrieve_csv():
+    response = httpx.get(f"{BACKEND_URL}/descargar-csv")
+    response.raise_for_status()
 
-    params = [
-        ("channel_url", channel_url or ""),
-        ("channel_keyword", channel_keyword or ""),
-        ("video_limit", str(int(video_limit or 0))),
-        ("whisper_language", whisper_language or ""),
-        ("podcast_limit", str(int(podcast_limit or 0))),
-    ]
-    
-    if only_transcribe:
-        params.append(("only_transcribe", "1"))
-    
-    params += [("single_video_urls", u) for u in urls]
-    params += [("mention_keywords",  k) for k in kws]
+    # Creamos un archivo temporal
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+    tmp.write(response.content)
+    tmp.close()
 
-    return params, urls, kws
+    # Y servimos dicho archivo temporal.
+    return tmp.name
 
 # ── Validator ─────────────────────────────────────────────────────────────────
 def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
@@ -45,7 +35,7 @@ def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
 
     return None
 
-def _progress_html(pct: int, *, danger: bool = False, done: bool = False) -> str:
+def _progress_html(pct: int, danger: bool = False, done: bool = False) -> str:
     pct = max(0, min(100, pct))
     if danger:
         color = "bg-danger"
@@ -79,32 +69,27 @@ def process_line(line, state):
 
         return
 
-    if line == "CSV_AVAILABLE:1": # Línea de finalización con archivo CSV.
-        state['csv_available'] = True
-        return
-
-    if line == "CSV_AVAILABLE:0": # Línea de finalización sin archivo CSV.
-        state['csv_available'] = False
-        return
-
     state['output_text'] += (line + "\n") # Líneas de "print" normales.
 
 # ── Main generator ────────────────────────────────────────────────────────────
-def run_pipeline(
+async def run_pipeline(
         channel_url, channel_keyword, video_limit, whisper_language,
         single_video_urls, podcast_limit, mention_keywords, only_transcribe
     ):
 
-    params, urls, keywords = build_params(
-        channel_url,
-        channel_keyword,
-        video_limit,
-        whisper_language,
-        single_video_urls,
-        podcast_limit,
-        mention_keywords,
-        only_transcribe,
+    state = {
+        'output_text': "Empezado el streaming...",
+        'pct': 0
+    }
+
+    yield (
+        state['output_text'],
+        _progress_html(state['pct']),
+        gr.update(visible=False)
     )
+
+    urls = [u.strip() for u in (single_video_urls or "").splitlines() if u.strip()]
+    keywords  = [k.strip() for k in (mention_keywords  or "").splitlines() if k.strip()]
 
     error = validate(
         int(video_limit or 0),
@@ -115,55 +100,74 @@ def run_pipeline(
     )
 
     if error:
-        yield error, _progress_html(0), gr.update(visible=False)
+        yield (
+            error,
+            _progress_html(0), 
+            gr.skip()
+        )
         return
 
     state = {
         'output_text': "",
-        'pct': 0,
-        'csv_available': False,
+        'pct': 0
     }
 
     try:
-        with requests.post(
-            f"{BACKEND_URL}/ejecutar",
-            data=params,
-            stream=True,
-            timeout=None,
-        ) as response:
+        url = f"{BACKEND_URL}/ejecutar"
+        data = {
+            "channel_url": channel_url or "",
+            "channel_keyword": channel_keyword or "",
+            "video_limit": video_limit or 0,
+            "whisper_language": whisper_language or "",
+            "podcast_limit": podcast_limit or 0,
+            "only_transcribe": 1 if only_transcribe else 0,
+            "single_video_urls": urls,
+            "mention_keywords": keywords
+        }
 
-            response.raise_for_status()
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST",
+                url,
+                data=data,
+            ) as response:
+                async for line in response.aiter_lines():
+                    if not line: continue
+                    process_line(line, state)
 
-            for line in response.iter_lines(decode_unicode=True):
-                stripped_line = line.strip()
-                if not stripped_line: continue
-
-                process_line(stripped_line, state)
-                yield (
-                    state['output_text'],
-                    _progress_html(state['pct']),
-                    gr.update(visible=False)
-                )
-
-    except requests.RequestException as exc:
+                    yield (
+                        state['output_text'],
+                        _progress_html(state['pct']),
+                        gr.skip()
+                    )
+    
+    except httpx.ConnectError as exc:
         state['output_text'] += f"❌ Error de conexión: {exc}"
 
         yield (
             state['output_text'],
             _progress_html(0),
-            gr.update(visible=False)
+            gr.skip()
         )
 
         return
-
+    
     success = "Proceso terminado con código: 0" in state['output_text']
-
     csv_available = success and "CSV_AVAILABLE:1" in state['output_text']
-    yield (
-        state['output_text'],
-        _progress_html(100 if success else state['pct']),
-        gr.update(visible=csv_available)
-    )
+
+    if csv_available:
+        csv_path = retrieve_csv()
+        yield (
+            state['output_text'],
+            _progress_html(100 if success else state['pct']),
+            gr.update(value=csv_path, visible=True)
+        )
+    else:
+        yield (
+            state['output_text'],
+            _progress_html(100 if success else state['pct']),
+            gr.skip()
+        )
 
 # ── Interfaz Gradio ───────────────────────────────────────────────────────────
 with gr.Blocks(title="Análisis de Medios") as demo:
@@ -190,11 +194,13 @@ with gr.Blocks(title="Análisis de Medios") as demo:
                 value="https://www.youtube.com/@InformativosTvc/videos",
                 placeholder="https://www.youtube.com/@canal/videos",
             )
+
             channel_keyword = gr.Textbox(
                 label="Palabra clave para filtrar vídeos del canal",
                 value="Telenoticias",
                 info="Dejar vacío para procesar los últimos vídeos sin filtrar por título.",
             )
+
             video_limit = gr.Number(
                 label="Número de vídeos a procesar del canal",
                 value=0, minimum=0, precision=0,
@@ -249,7 +255,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
         progress_bar = gr.HTML(_progress_html(0))
-        download_btn = gr.DownloadButton("Descargar CSV", value="tmp/analisis-textos-json.csv", elem_id="download_btn", variant="secondary", visible=False)
+        csv_file = gr.File(value=None, label="Archivo CSV", visible=False)
         output_box = gr.Textbox(
             label="Resultado",
             lines=18,
@@ -270,5 +276,8 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             mention_keywords,
             only_transcribe,
         ],
-        outputs=[output_box, progress_bar, download_btn],
+        outputs=[output_box, progress_bar, csv_file],
     )
+
+if __name__ == "__main__":
+    demo.launch()

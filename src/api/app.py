@@ -1,7 +1,7 @@
 from config.load_config import load_config
 from .frontend import demo
 import gradio as gr
-from fastapi.responses import RedirectResponse
+import asyncio
 
 from fastapi import FastAPI, Form
 from fastapi.templating import Jinja2Templates
@@ -16,7 +16,7 @@ import time
 import uvicorn
 import argparse
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True, encoding='utf-8')
 
 # Cargar configuración
 config = load_config()
@@ -64,7 +64,7 @@ async def ejecutar_stream(
         str(int(bool(only_transcribe))),
         whisper_language
     ]
-
+    
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -72,18 +72,34 @@ async def ejecutar_stream(
         text=True,
         encoding='utf-8',
         errors='replace',  
-        bufsize=1  
+        bufsize=1
     )
     
     async def log_generator():
-        for line in process.stdout:
-            print(line, end="", flush=True)  
-            yield line                        
-        rc = process.wait()
-        yield f"\nProceso terminado con código: {rc}\n"
-        yield f"Tiempo para ejecución: {time.time() - start_time}s\n"
+        try:
+            while True:
+                line = await asyncio.to_thread(process.stdout.readline)
+                if not line: break
 
-    return StreamingResponse(log_generator(), media_type="text/plain")
+                print(line, end="", flush=True)
+                yield line
+            
+            rc = await asyncio.to_thread(process.wait)
+            yield f"\nProceso terminado con código: {rc}\n"
+            yield f"Tiempo para ejecución: {time.time() - start_time}s\n"
+        
+        except asyncio.CancelledError:
+            print(
+                "\n[INFO] Conexión cerrada por el cliente o cancelada. Matando proceso...",
+                flush=True,
+            )
+            raise
+
+        finally:
+            if process.returncode is None: # Realiza cierre limpio (SIGTERM) si se sigue ejecutando.
+                process.terminate()
+
+    return StreamingResponse(log_generator(), media_type="text/plain-text")
 
 @app.get("/descargar-csv", response_class=FileResponse)
 async def descargar_csv():
