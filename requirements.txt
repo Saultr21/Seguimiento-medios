@@ -11,13 +11,15 @@ pysentimiento
 requests
 urllib3
 nemo_toolkit[asr]
-#torch # Recomendado: usar la build con CUDA si dispone de GPU (ej. torch==2.9.0+cu130)
 matplotlib
 jinja2
 fastapi 
 uvicorn
 python-multipart
 python-dotenv
-# Ejemplo: para instalar localmente la variante CUDA 13.0:
+gradio
+
+# torch # Recomendado: usar la build con CUDA si dispone de GPU (ej. torch==2.9.0+cu130)
+# Ejemplo para instalar localmente la variante CUDA 13.0:
 #pip install --index-url https://download.pytorch.org/whl/cu130 --extra-index-url https://pypi.org/simple torch
 # Para CPU-only (no CUDA): pip install torch
