@@ -2,9 +2,10 @@ import gradio as gr
 from urllib.parse import urlparse
 import httpx
 import tempfile
+import os
  
 # ── Configuración ────────────────────────────────────────────────────────────
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = os.environ['BACKEND_URL']
 
 def retrieve_csv():
     response = httpx.get(f"{BACKEND_URL}/descargar-csv")
@@ -113,7 +114,6 @@ async def run_pipeline(
     }
 
     try:
-        url = f"{BACKEND_URL}/ejecutar"
         data = {
             "channel_url": channel_url or "",
             "channel_keyword": channel_keyword or "",
@@ -128,7 +128,7 @@ async def run_pipeline(
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST",
-                url,
+                f"{BACKEND_URL}/ejecutar",
                 data=data,
             ) as response:
                 async for line in response.aiter_lines():
