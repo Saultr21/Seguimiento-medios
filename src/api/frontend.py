@@ -7,18 +7,6 @@ import os
 # ── Configuración ────────────────────────────────────────────────────────────
 BACKEND_URL = os.environ['BACKEND_URL']
 
-def retrieve_csv():
-    response = httpx.get(f"{BACKEND_URL}/descargar-csv")
-    response.raise_for_status()
-
-    # Creamos un archivo temporal
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
-    tmp.write(response.content)
-    tmp.close()
-
-    # Y servimos dicho archivo temporal.
-    return tmp.name
-
 # ── Validator ─────────────────────────────────────────────────────────────────
 def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
     has_media_source = video_limit or urls or podcast_limit
@@ -154,20 +142,11 @@ async def run_pipeline(
     
     success = "Proceso terminado con código: 0" in state['output_text']
     csv_available = success and "CSV_AVAILABLE:1" in state['output_text']
-
-    if csv_available:
-        csv_path = retrieve_csv()
-        yield (
-            state['output_text'],
-            _progress_html(100 if success else state['pct']),
-            gr.update(value=csv_path, visible=True)
-        )
-    else:
-        yield (
-            state['output_text'],
-            _progress_html(100 if success else state['pct']),
-            gr.skip()
-        )
+    yield (
+        state['output_text'],
+        _progress_html(100 if success else state['pct']),
+        gr.update(visible=csv_available)
+    )
 
 # ── Interfaz Gradio ───────────────────────────────────────────────────────────
 with gr.Blocks(title="Análisis de Medios") as demo:
@@ -255,7 +234,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
         progress_bar = gr.HTML(_progress_html(0))
-        csv_file = gr.File(value=None, label="Archivo CSV", visible=False)
+        csv_file = gr.File(value=os.environ["CSV_OUTPUT_PATH"], label="Archivo CSV", visible=False)
         output_box = gr.Textbox(
             label="Resultado",
             lines=18,
