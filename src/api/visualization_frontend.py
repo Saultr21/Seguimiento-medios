@@ -83,17 +83,45 @@ def _render_header():
  
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 def _render_kpis(df: pd.DataFrame):
-    col1, col2, col3, col4 = st.columns(4)
+    row1_col1, row1_col2 = st.columns(2)
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
     
     n_total = len(df)
     n_neg   = (df["sentimiento"] == "Negativo").sum()
+    n_pos   = (df["sentimiento"] == "Positivo").sum()
+    n_neu   = (df["sentimiento"] == "Neutral").sum()
     n_odio  = (df["odio_detectado"].str.lower() == "odio").sum()
-    avg_neg = df["prob_neg"].mean() if "prob_neg" in df.columns else 0
+
+    # Calcular porcentajes.
+    pct_neg = (n_neg / n_total * 100) if n_total > 0 else 0
+    pct_pos = (n_pos / n_total * 100) if n_total > 0 else 0
+    pct_neu = (n_neu / n_total * 100) if n_total > 0 else 0
+    pct_odio = (n_odio / n_total * 100) if n_total > 0 else 0
     
-    col1.metric("Fragmentos analizados", n_total)
-    col2.metric("Sentimiento negativo", n_neg, delta=f"{n_neg/n_total*100:.0f}% del total")
-    col3.metric("Odio detectado", n_odio)
-    col4.metric("Prob. negativa media", f"{avg_neg:.1f}%")
+    row1_col1.metric("Fragmentos analizados", n_total, help="Número total de fragmentos analizados.")
+    row1_col2.metric("Odio detectado", f"{n_odio} ({pct_odio:.1f}%)", help="´Número y porcentaje de de fragmentos con odio detectado.")
+    
+    row2_col1.metric(
+        "Sentimiento negativo",
+        n_neg,
+        delta = f"{pct_neg:.1f}%",
+        delta_color = "inverse",
+        help = "Número y porcentaje de fragmentos con sentimientos negativos."
+    )
+    row2_col2.metric(
+        "Sentimiento neutral",
+        n_neu,
+        delta=f"{pct_neu:.1f}%",
+        delta_color="gray",
+        help="Número y porcentaje de fragmentos con sentimientos neutrales."
+    )
+    row2_col3.metric(
+        "Sentimiento positivo",
+        n_pos,
+        delta=f"{pct_pos:.1f}%",
+        delta_color="normal",
+        help="Número y porcentaje de fragmentos con sentimientos neutrales."
+    )
     
     st.divider()
  
