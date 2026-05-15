@@ -27,11 +27,9 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 gr.mount_gradio_app(app, demo.queue(), "/gradio", css_paths=["static/style.css"])
-
-
 @app.get("/", response_class=RedirectResponse)
 async def read_root(request: Request):
-    # Redirigimos a la interfaz de Gradio
+    # Si tratamos de reemplazar la raíz con Gradio, da errores. Por tanto, redirigimos a su endpoint.
     return RedirectResponse(url="/gradio", status_code=301)
 
 @app.post("/ejecutar")
@@ -44,13 +42,14 @@ async def ejecutar_stream(
     podcast_limit: int = Form(...),
     single_video_urls: List[str] = Form([]),
     only_transcribe: int = Form(0),
-    whisper_language: str = Form("")
+    whisper_language: str = Form(""),
+    asr_model: str = Form("")
 ):
     mention_keywords_str = ",".join(mention_keywords)
     single_video_urls_str = ",".join(filter(None, single_video_urls)) 
     
     start_time = time.time()
-    cmd = [    
+    cmd = [
         "run-pipeline",
         channel_url,
         channel_keyword,
@@ -59,7 +58,8 @@ async def ejecutar_stream(
         str(podcast_limit), 
         single_video_urls_str,
         str(int(bool(only_transcribe))),
-        whisper_language
+        whisper_language,
+        asr_model
     ]
     
     process = subprocess.Popen(

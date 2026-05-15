@@ -63,7 +63,8 @@ def process_line(line, state):
 # ── Main generator ────────────────────────────────────────────────────────────
 async def run_pipeline(
         channel_url, channel_keyword, video_limit, whisper_language,
-        single_video_urls, podcast_limit, mention_keywords, only_transcribe
+        single_video_urls, podcast_limit, mention_keywords, only_transcribe,
+        asr_model
     ):
 
     state = {
@@ -74,7 +75,7 @@ async def run_pipeline(
     yield (
         state['output_text'],
         _progress_html(state['pct']),
-        gr.update(visible=False)
+        gr.update(value=None, visible=False)
     )
 
     urls = [u.strip() for u in (single_video_urls or "").splitlines() if u.strip()]
@@ -110,7 +111,8 @@ async def run_pipeline(
             "podcast_limit": podcast_limit or 0,
             "only_transcribe": 1 if only_transcribe else 0,
             "single_video_urls": urls,
-            "mention_keywords": keywords
+            "mention_keywords": keywords,
+            "asr_model": asr_model
         }
 
         async with httpx.AsyncClient(timeout=None) as client:
@@ -142,11 +144,18 @@ async def run_pipeline(
     
     success = "Proceso terminado con código: 0" in state['output_text']
     csv_available = success and "CSV_AVAILABLE:1" in state['output_text']
-    yield (
-        state['output_text'],
-        _progress_html(100 if success else state['pct']),
-        gr.update(visible=csv_available)
-    )
+    if csv_available:
+        yield (
+            state['output_text'],
+            _progress_html(100 if success else state['pct']),
+            gr.update(value=os.environ["CSV_OUTPUT_PATH"], visible=True)
+        )
+    else:
+        yield(
+            state['output_text'],
+            _progress_html(100 if success else state['pct']),
+            gr.skip()
+        )
 
 # ── Interfaz Gradio ───────────────────────────────────────────────────────────
 with gr.Blocks(title="Análisis de Medios") as demo:
@@ -213,20 +222,26 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             )
 
         # ── Opciones adicionales de ejecución ─────────────────────────────────────────────────
+        with gr.Group():
+            asr_model = gr.Radio(
+                choices=[
+                    ("Whisper", "whisper"),
+                    ("NeMo", "nemo")
+                ],
+                value="whisper",
+                interactive=True,
+                label="Modelo de transcripción",
+                info="""
+                    Selecciona el modelo para la transcripción de audio.
+                    - Whisper: liviano, menos preciso
+                    - NeMo (Canary): pesado, más preciso
+                """
+            )
+
         only_transcribe = gr.Checkbox(
             label="Solo transcribir (sin extracción de contextos ni análisis de sentimientos)",
             value=False,
-        )
-
-        only_transcribe_note = gr.Markdown(
-            "ℹ️ **Nota:** Al activar 'Solo transcribir' no es necesario añadir palabras clave para filtrado de menciones.",
-            visible=False,
-        )
-
-        only_transcribe.change(
-            fn=lambda v: gr.update(visible=v),
-            inputs=only_transcribe,
-            outputs=only_transcribe_note,
+            info="ℹ️ **Nota:** Al activar 'Solo transcribir' no es necesario añadir palabras clave para filtrado de menciones.",
         )
 
     submit_btn = gr.Button("▶ Ejecutar Flujo", variant="primary")
@@ -234,7 +249,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
         progress_bar = gr.HTML(_progress_html(0))
-        csv_file = gr.File(value=os.environ["CSV_OUTPUT_PATH"], label="Archivo CSV", visible=False)
+        csv_file = gr.File(value=None, label="Archivo CSV", visible=False)
         output_box = gr.Textbox(
             label="Resultado",
             lines=18,
@@ -254,6 +269,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             podcast_limit,
             mention_keywords,
             only_transcribe,
+            asr_model
         ],
         outputs=[output_box, progress_bar, csv_file],
     )

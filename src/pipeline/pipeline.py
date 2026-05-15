@@ -41,6 +41,7 @@ def pipeline(
     single_video_urls: List[str],
     only_transcribe: bool = False,
     whisper_language: str = "",
+    asr_model: str = ""
 ):
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
     current_progress = 0
@@ -58,8 +59,16 @@ def pipeline(
     json_output_path.unlink(missing_ok=True)
     csv_output_path.unlink(missing_ok=True)
 
-    # Carga de modelo ASR.
-    transcription_model = ASRFactory.load_nemo_asr(config)
+    # Carga de modelo y servicio ASR.
+    match asr_model:
+        case "whisper":
+            transcription_model = ASRFactory.load_whisper_asr(config)
+        case "nemo":
+            transcription_model = ASRFactory.load_nemo_asr(config)
+        case _:
+            print("PROGRESS:100:No se ha especificado un modelo de transcripción. Terminando...", flush=True)
+            return
+        
     transcription_service = TranscriptionService(str(transcription_folder), transcription_model)
 
     # Carga de cliente de LLM.
@@ -225,6 +234,7 @@ def run():
 
     parser.add_argument("only_transcribe", type=int, default=0)
     parser.add_argument("whisper_language", default="")
+    parser.add_argument("asr_model", default="")
 
     args = parser.parse_args()
 
@@ -251,7 +261,8 @@ def run():
         args.podcast_limit,
         single_video_urls_list,
         only_transcribe,
-        whisper_language
+        whisper_language,
+        args.asr_model
     )
 
 if __name__ == "__main__":

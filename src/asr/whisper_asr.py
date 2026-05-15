@@ -5,6 +5,9 @@ from transformers import (
     pipeline
 )
 
+import logging
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
 from .base_asr import BaseASR
 from config.torch_config import resolve_device_and_dtype
 
@@ -23,7 +26,7 @@ class WhisperASR(BaseASR):
             config(dict):
                 Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
         """
-        self._model = self._load_model(config)
+        self._model, self._device = self._load_model(config)
     
     def _load_model(self, config):
         """
@@ -97,12 +100,11 @@ class WhisperASR(BaseASR):
         else:
             _PROCESSOR = self._PROCESSOR
             try:
-                if audio_language and _PROCESSOR is not None:
-                    try:
-                        forced_ids_local = _PROCESSOR.get_decoder_prompt_ids(language=audio_language, task="transcribe")
-                        kwargs = {"forced_decoder_ids": forced_ids_local} # Forzamos la transcripción a un idioma determinado.
-                    except Exception:
-                        kwargs = {} # Si no se puede obtener forced ids, seguimos sin forzar el idioma.
+                try:
+                    forced_ids_local = _PROCESSOR.get_decoder_prompt_ids(language=audio_language, task="transcribe")
+                    kwargs = {"forced_decoder_ids": forced_ids_local} # Forzamos la transcripción a un idioma determinado.
+                except Exception:
+                    kwargs = {} # Si no se puede obtener forced ids, seguimos sin forzar el idioma.
 
                 result = self._model(
                     str(audio_path),
