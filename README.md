@@ -36,6 +36,7 @@ Seguimiento-medios/
 │   ├── api/                          # API y servidor web
 │   │   ├── app.py                    # Servidor FastAPI + endpoints web
 │   │   ├── frontend.py               # Servidor Gradio para frontend. Expuesto mediante FastAPI. 
+│   │   ├── visualization_frontend.py # Servidor Streamlit para visualización de salida del pipeline.              
 │   │   └── __init__.py
 │   │
 │   ├── asr/                          # Sistemas ASR (Speech-to-Text)
@@ -132,8 +133,9 @@ TRANSCRIPTIONS_DIR=./tmp/transcriptions
 JSON_OUTPUT_PATH=./tmp/fragmentos.json
 CSV_OUTPUT_PATH=./tmp/analisis-textos-json.csv
 
-# URL backend (para Gradio).
+# URL backend (para Gradio) y puerto de Streamlit.
 BACKEND_URL=http://localhost:8000
+VISUALIZATION_PORT=8002
 
 # Configuración de modelos.
 WHISPER_MODEL_URL=openai/whisper-large-v3-turbo
@@ -150,6 +152,7 @@ LLM_MODEL=gemma-4-e2b
 | `CSV_OUTPUT_PATH` | Fichero CSV de salida con el análisis de sentimientos |
 | `WHISPER_MODEL_URL` | Modelo Whisper a utilizar para la transcripción |
 | `BACKEND_URL` | URL del backend. Solo es utilizada por el frontend de Gradio, ya que no permite rutas relativas. |
+| `VISUALIZATION_PORT` | Puerto para el servicio de Streamlit. A diferencia de Gradio, no funciona en conjunto con FastAPI, así que debemos llamarlo como un subproceso. |
 | `NEMO_MODEL_URL` | Modelo de NeMO utilizado para la transcripción (opción por defecto actual) |
 | `LLM_URL` | URL de la API REST del LLM local (compatible con OpenAI). El valor por defecto proviene de LM Studio (aunque otras aplicaciones como Ollama también son compatibles mientras soporten la sintaxis de OpenAI). |
 | `LLM_MODEL` | Modelo de LLM que se está utilizando actualmente. |
@@ -206,26 +209,6 @@ Inicio
 ```
 
 | **En modo _"Solo transcribir"_, los pasos 2 y 3 se omiten**.
-
----
-
-## Investigando: Dashboards
-
-Se está investigando la utilización de un dashboard de código abierto como Metabase.
-
-Para iniciar Metabase, se utiliza:
-
-```bash
-docker run -d -p 3000:3000 --name metabase metabase/metabase
-```
-
-Con esto, se puede acceder a la interfaz de Metabase usando a la dirección `localhost:3000`.
-
-```bash
-usuario: Usuario 1
-email: usuario1@cognitiatech.com
-contraseña: usuario1@cognitiatech.com
-```
 
 ---
 
