@@ -64,14 +64,36 @@ def _render_sidebar() -> pd.DataFrame:
     return df
  
 # ── Filtros ──────────────────────────────────────────────────────────────────
-def _filter_data(df: pd.DataFrame) -> pd.DataFrame:
+def _fetch_keywords(entity: str): # Función helper.
+    keywords = list()
+    splits = entity.split(",")
+    for split in splits:
+        keyword = split.replace("()", "").strip()
+        keywords.append(keyword)
+        
+    return keywords
+
+def _render_sidebar_filters(df: pd.DataFrame) -> pd.DataFrame:
     titulos = df["titulo"].unique().tolist()
-    sel_titulo = st.sidebar.multiselect("Filtrar por título", titulos, default=titulos)
-    df = df[df["titulo"].isin(sel_titulo)]
+    selected_title = st.sidebar.multiselect("Filtrar por título", titulos, default=titulos)
+    df = df[df["titulo"].isin(selected_title)]
     
     sentimientos_disponibles = df["sentimiento"].unique().tolist()
-    sel_sent = st.sidebar.multiselect("Filtrar por sentimiento", sentimientos_disponibles, default=sentimientos_disponibles)
-    df = df[df["sentimiento"].isin(sel_sent)]
+    selected_sentiment = st.sidebar.multiselect("Filtrar por sentimiento", sentimientos_disponibles, default=sentimientos_disponibles)
+    df = df[df["sentimiento"].isin(selected_sentiment)]
+
+    keywords = df["entidades"].map(_fetch_keywords)
+    # Unimos y ordenamos todas las palabras clave / entidades. Usamos un "set" para evitar repetición.
+    keywords = sorted( 
+        set().union(*keywords)
+    )
+
+    selected_keywords = st.sidebar.multiselect("Filtrar por palabras clave", keywords, default=keywords)
+    df = df[
+        df["entidades"].apply( # Filtrado por si se encuentra la palabra clave.
+            lambda entity: any(keyword in entity for keyword in selected_keywords)
+        )
+    ]
 
     return df
  
@@ -120,7 +142,7 @@ def _render_kpis(df: pd.DataFrame):
         n_pos,
         delta=f"{pct_pos:.1f}%",
         delta_color="normal",
-        help="Número y porcentaje de fragmentos con sentimientos neutrales."
+        help="Número y porcentaje de fragmentos con sentimientos positivos."
     )
     
     st.divider()
@@ -262,7 +284,7 @@ def main() -> None:
     _render_header()
     
     df = _render_sidebar()
-    df = _filter_data(df)
+    df = _render_sidebar_filters(df)
     _render_kpis(df)
 
     _render_sentiment_section(df)

@@ -7,12 +7,9 @@ from pysentimiento import create_analyzer
 
 from utils.file_utils import read_json_file
 
-logging.getLogger("transformers").setLevel(logging.ERROR)
-
 # ────────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ────────────────────────────────────────────────────────────────────────────────
-
 # Convierte probabilidades decimales a porcentajes con 2 decimales.
 to_percentage = lambda p: f"{p * 100:.2f}%"  
 
