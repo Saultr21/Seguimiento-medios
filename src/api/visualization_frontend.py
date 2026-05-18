@@ -33,25 +33,36 @@ st.markdown("""
 
 # ── Carga de datos ───────────────────────────────────────────────────────────
 @st.cache_data
-def _load_data(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    # Convertir columnas de porcentaje (string con %) a float
-    for col in df.columns:
-        pattern = re.compile(r'^(prob_|emo_)')
-        if pattern.match(col):
-            df[col] = df[col].map(lambda s: s[:-1]).astype(float)
+def _load_data(uploaded_files: str) -> pd.DataFrame:
+    data = []
+
+    for file in uploaded_files:
+        df = pd.read_csv(file)
+
+        # Convertimos columnas de porcentaje (string con %) a float
+        for col in df.columns:
+            pattern = re.compile(r'^(prob_|emo_)')
+            if pattern.match(col):
+                df[col] = df[col].map(lambda s: s[:-1]).astype(float)
+
+        data.append(df)
     
-    return df
+    return pd.concat(data, ignore_index=True)
  
 # ── Sidebar: carga de archivo ────────────────────────────────────────────────
 def _render_sidebar() -> pd.DataFrame:
     st.sidebar.header("⚙️ Configuración")
-    uploaded = st.sidebar.file_uploader("Subir CSV de análisis", type=["csv"])
+
+    uploaded = st.sidebar.file_uploader(
+        "Subir CSV de análisis",
+        type=["csv"],
+        accept_multiple_files=True
+    )
 
     df = None
     if uploaded:
         df = _load_data(uploaded)
-        st.sidebar.success(f"✅ {len(df)} fragmentos cargados")
+        st.sidebar.success(f"✅ { len(df) } fragmentos cargados en { len(uploaded) } archivo(s)")
     else:
         # Usar el archivo de ejemplo por defecto
         DEFAULT_PATH = "tmp/analisis-textos-json.csv"
