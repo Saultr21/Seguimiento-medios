@@ -30,7 +30,7 @@ st.markdown("""
     .sentiment-pos { color: #2ecc71; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
- 
+
 # ── Carga de datos ───────────────────────────────────────────────────────────
 @st.cache_data
 def _load_data(path: str) -> pd.DataFrame:
@@ -48,6 +48,7 @@ def _render_sidebar() -> pd.DataFrame:
     st.sidebar.header("⚙️ Configuración")
     uploaded = st.sidebar.file_uploader("Subir CSV de análisis", type=["csv"])
 
+    df = None
     if uploaded:
         df = _load_data(uploaded)
         st.sidebar.success(f"✅ {len(df)} fragmentos cargados")
