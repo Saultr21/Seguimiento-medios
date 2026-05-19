@@ -18,6 +18,7 @@ uvicorn
 python-multipart
 python-dotenv
 gradio
+streamlit
 
 # torch # Recomendado: usar la build con CUDA si dispone de GPU (ej. torch==2.9.0+cu130)
 # Ejemplo para instalar localmente la variante CUDA 13.0:
