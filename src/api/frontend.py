@@ -1,7 +1,6 @@
 import gradio as gr
 from urllib.parse import urlparse
 import httpx
-import tempfile
 import os
  
 # ── Configuración ────────────────────────────────────────────────────────────
@@ -62,7 +61,7 @@ def process_line(line, state):
 
 # ── Main generator ────────────────────────────────────────────────────────────
 async def run_pipeline(
-        channel_url, channel_keyword, video_limit, whisper_language,
+        channel_url, channel_keyword, video_limit, language,
         single_video_urls, podcast_limit, mention_keywords, only_transcribe,
         asr_model
     ):
@@ -92,7 +91,7 @@ async def run_pipeline(
     if error:
         yield (
             error,
-            _progress_html(0), 
+            _progress_html(0, danger=True), 
             gr.skip()
         )
         return
@@ -107,7 +106,7 @@ async def run_pipeline(
             "channel_url": channel_url or "",
             "channel_keyword": channel_keyword or "",
             "video_limit": video_limit or 0,
-            "whisper_language": whisper_language or "",
+            "language": language or "",
             "podcast_limit": podcast_limit or 0,
             "only_transcribe": 1 if only_transcribe else 0,
             "single_video_urls": urls,
@@ -136,7 +135,7 @@ async def run_pipeline(
 
         yield (
             state['output_text'],
-            _progress_html(0),
+            _progress_html(0, danger=True),
             gr.skip()
         )
 
@@ -147,13 +146,13 @@ async def run_pipeline(
     if csv_available:
         yield (
             state['output_text'],
-            _progress_html(100 if success else state['pct']),
+            _progress_html(100 if success else state['pct'], done=success),
             gr.update(value=os.environ["CSV_OUTPUT_PATH"], visible=True)
         )
     else:
         yield(
             state['output_text'],
-            _progress_html(100 if success else state['pct']),
+            _progress_html(100 if success else state['pct'], done=success),
             gr.skip()
         )
 
@@ -164,7 +163,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
 
     with gr.Group():
         # ── Idioma (siempre visible) ──────────────────────────────────────────────
-        whisper_language = gr.Dropdown(
+        language = gr.Dropdown(
             choices=[
                 ("Automático (detección)", ""),
                 ("Inglés", "english"),
@@ -264,7 +263,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             channel_url,
             channel_keyword,
             video_limit,
-            whisper_language,
+            language,
             single_video_urls,
             podcast_limit,
             mention_keywords,

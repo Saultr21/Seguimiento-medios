@@ -76,7 +76,7 @@ async def run_pipeline(
     podcast_limit: int = Form(...),
     single_video_urls: List[str] = Form([]),
     only_transcribe: int = Form(0),
-    whisper_language: str = Form(""),
+    language: str = Form(""),
     asr_model: str = Form("")
 ):
     mention_keywords_str = ",".join(mention_keywords)
@@ -92,7 +92,7 @@ async def run_pipeline(
         str(podcast_limit), 
         single_video_urls_str,
         str(int(bool(only_transcribe))),
-        whisper_language,
+        language,
         asr_model
     ]
     

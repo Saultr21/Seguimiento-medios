@@ -40,7 +40,7 @@ def pipeline(
     podcast_limit: int,
     single_video_urls: List[str],
     only_transcribe: bool = False,
-    whisper_language: str = "",
+    language: str = "",
     asr_model: str = ""
 ):
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
@@ -118,7 +118,7 @@ def pipeline(
             try:
                 print(f"Descargando y procesando vídeo de YouTube especificado { i+1 }/{ len(single_video_urls) } ({ video_url })...", flush=True)
                 base_name, mp3_path = download_yt_video(video_url, audio_folder)
-                transcription_service.transcribe_audio(base_name, mp3_path, whisper_language)
+                transcription_service.transcribe_audio(base_name, mp3_path, language)
             except Exception as e:
                 print(f"  Error al procesar vídeo único en {video_url}: {e}", flush=True)
         
@@ -136,7 +136,7 @@ def pipeline(
         for i, video in enumerate(downloaded_videos):
             base_name, video_path = video['name'], video['path']
             print(f"Procesando vídeo del canal {channel_url} { i+1 }/{ len(downloaded_videos) } ({ base_name })...", flush=True)
-            transcription_service.transcribe_audio(base_name, video_path, whisper_language)
+            transcription_service.transcribe_audio(base_name, video_path, language)
 
         current_progress += 20
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de YouTube completada.", flush=True)
@@ -233,7 +233,7 @@ def run():
     parser.add_argument("single_video_urls_str", nargs="?", default="")
 
     parser.add_argument("only_transcribe", type=int, default=0)
-    parser.add_argument("whisper_language", default="")
+    parser.add_argument("language", default="")
     parser.add_argument("asr_model", default="")
 
     args = parser.parse_args()
@@ -251,7 +251,7 @@ def run():
     ] if args.single_video_urls_str else []
 
     only_transcribe = bool(args.only_transcribe)
-    whisper_language = args.whisper_language or None
+    language = args.language or None
 
     pipeline(
         args.channel_url,
@@ -261,7 +261,7 @@ def run():
         args.podcast_limit,
         single_video_urls_list,
         only_transcribe,
-        whisper_language,
+        language,
         args.asr_model
     )
 
