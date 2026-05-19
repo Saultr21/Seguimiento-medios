@@ -47,8 +47,11 @@ async def lifespan(app: FastAPI): # "lifespan" es un método para añadir lógic
     yield # Tras el yield, se añade lógica de apagado.
 
     # Lógica de apagado.
-    if streamlit_process:
-        os.kill(streamlit_process.pid, signal.SIGTERM)
+    if not streamlit_process.returncode:
+        try:
+            streamlit_process.termiate() # Trata de mandar SIGTERM para acabar con el proceso.
+        except Exception:
+            streamlit_process.kill() # En caso de que dé error, trata de matarlo.
         print("Terminado proceso de Streamlit.")
 
 # Crear la instancia de la aplicación FastAPI
