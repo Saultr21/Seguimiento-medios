@@ -196,7 +196,7 @@ def pipeline(
         # Paso 3: Analizar sentimientos/emociones
         print(f"\nPROGRESS:{current_progress}:=== Paso 3: Analizar Sentimientos ===", flush=True)
         if Path(json_output_path).exists() and Path(json_output_path).stat().st_size > 0 :
-            analyze_texts(input_file=str(json_output_path), output_file=str(csv_output_path), debug=False)
+            analyze_texts(input_file=str(json_output_path), output_file=str(csv_output_path), language=language, debug=False)
         else:
             print(f"El archivo JSON '{json_output_path}' no existe o está vacío. Omitiendo análisis de sentimientos.", flush=True)
         current_progress = 95
