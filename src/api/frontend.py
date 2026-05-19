@@ -192,6 +192,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
                 label="Número de vídeos a procesar del canal",
                 value=0, minimum=0, precision=0,
                 info="0 = no procesar vídeos del canal.",
+                elem_classes=["gr-number"]
             )
 
         # ── Vídeos únicos ─────────────────────────────────────────────────────────
@@ -209,6 +210,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
                 label="Número de podcasts a descargar",
                 value=0, minimum=0, precision=0,
                 info="Se descargarán los últimos episodios de 'El Espejo Canario'. 0 = no procesar.",
+                elem_classes=["gr-number"]
             )
 
         # ── Palabras clave ────────────────────────────────────────────────────────

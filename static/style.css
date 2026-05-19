@@ -18,3 +18,8 @@
   max-height: 300px;
   overflow-y: "auto";
 }
+
+.gr-number {
+  display: flex;
+  justify-content: center;
+}
