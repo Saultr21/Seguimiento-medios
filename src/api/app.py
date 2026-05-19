@@ -25,9 +25,25 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True, encoding='
 config = load_config()
 streamlit_process = None
 
+def launch_streamlit():
+    global streamlit_process
+    visualization_port = os.getenv("VISUALIZATION_PORT")
+
+    streamlit_process = subprocess.Popen(
+        [
+            sys.executable, "-m",
+            "streamlit", "run", "src/api/visualization_frontend.py",
+            "--server.port", visualization_port,
+            "--server.headless", "true",
+            "--theme.base", "dark"
+        ],
+        stdout = None
+    )
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI): # "lifespan" es un método para añadir lógica de inicio y finalización a la aplicación.
-    # Lógica de inicio (de momento, vacío).
+    # Lógica de inicio.
+    launch_streamlit()
     yield # Tras el yield, se añade lógica de apagado.
 
     # Lógica de apagado.
@@ -47,24 +63,9 @@ async def launch_gradio(request: Request):
     # Si tratamos de reemplazar la raíz con Gradio, da errores. Por tanto, redirigimos a su endpoint.
     return RedirectResponse(url="/gradio", status_code=301)
 
-@app.get("/visualization-frontend")
-async def launch_streamlit(request: Request):
-    global streamlit_process
-
-    visualization_port = os.getenv("VISUALIZATION_PORT")
-
-    if not streamlit_process:
-        streamlit_process = subprocess.Popen(
-            [
-                "streamlit", "run", "src/api/visualization_frontend.py",
-                "--server.port", os.getenv("VISUALIZATION_PORT"),
-                "--server.headless", "true",
-                "--theme.base", "dark"
-            ],
-            stdout=None
-        )
-    
-    return RedirectResponse(url=f"http://localhost:{ visualization_port }", status_code=301)
+@app.get("/visualization-frontend", response_class=RedirectResponse)
+async def redirect_visualization(request: Request):
+    return RedirectResponse(url=f"localhost:{ os.getenv('VISUALIZATION_PORT') }", status_code=307)
 
 @app.post("/ejecutar")
 async def run_pipeline(

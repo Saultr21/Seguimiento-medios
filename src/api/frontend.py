@@ -246,6 +246,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
         )
 
     submit_btn = gr.Button("▶ Ejecutar Flujo", variant="primary")
+    visualization_btn = gr.Button("Visitar página de visualziación", variant="secondary")
 
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
@@ -273,6 +274,11 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             asr_model
         ],
         outputs=[output_box, progress_bar, csv_file],
+    )
+
+    visualization_btn.click(
+        lambda: None,
+        js = f"window.open('{BACKEND_URL}/visualization-frontend', '_blank')"
     )
 
 if __name__ == "__main__":
