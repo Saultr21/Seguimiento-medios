@@ -1,18 +1,35 @@
-from __future__ import annotations
 import re
-import warnings
 from pathlib import Path
-from typing import List
 import requests
 from bs4 import BeautifulSoup
 import yt_dlp
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 # ════════════════════════════════════════════════
 # Descarga de programas de El Espejo Canario
 # ════════════════════════════════════════════════
-def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> List[Path]:
+def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> list[Path]:
+    """
+    Descarga una cantidad `quantity` de episodios del podcast "El Espejo Canario" y los guarda como archivos MP3.
+    
+    Args:
+        audio_folder (Path):
+            Carpeta donde se guardarán los archivos de audio descargados.
+        
+        quantity (int, optional):
+            Número máximo de podcasts a descargar. Si es 0, no se descargará ningún podcast.
+    
+    Returns:
+        list[Path]:
+            Lista de diccionarios con información sobre los archivos descargados, con el formato:
+                {
+                    "name": str,    # Nombre del capítulo descargado.
+                    "path": Path    # Ruta al archivo descargado.
+                }
+
+    Nota:
+        Utiliza `yt-dlp`, `requests` y `beautifulsoup` para conseguir enlaces y archivos de audio.
+    """
+
     if quantity == 0:
         print("Límite de podcasts establecido en 0. Omitiendo transcripción de podcasts.", flush=True)
         return
@@ -22,6 +39,7 @@ def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> Li
     
     downloaded_files = []
     try:
+        # Simula el encabezado de un navegador para evitar bloqueos del servidor.
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -36,10 +54,9 @@ def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> Li
         
         print(f"Se encontraron {len(articles)} artículos. Procesando hasta {quantity or 'todos'}.", flush=True)
         
+        articles = articles[:quantity]
         ivoox_links = []
-        articulos_a_procesar = articles[:quantity] if quantity is not None else articles
-
-        for i, article in enumerate(articulos_a_procesar):
+        for i, article in enumerate(articles):
             title_tag = article.find('h2', class_='entry-title')
             program_title = title_tag.a.text.strip() if title_tag and title_tag.a else f"Programa Desconocido {i+1}"
             
@@ -62,7 +79,8 @@ def download_espejocanario_podcasts(audio_folder: Path, quantity: int = 0) -> Li
             return []
         
         print(f"\nIniciando descarga de { len(ivoox_links) } audio", flush=True)
-        
+
+        # Descargar cada audio de iVoox usando yt-dlp.
         for item in ivoox_links:
             url = item["url"]
             clean_title = re.sub(r'[\\/*?:"<>|]', '_', item["program_title"])
