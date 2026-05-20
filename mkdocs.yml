@@ -1,0 +1,21 @@
+site_name: Documentación de seguimiento de medios
+
+theme:
+  name: dracula
+
+plugins:
+  - search
+  - mkdocstrings
+
+nav:
+  - Inicio: index.md
+  - Módulos:
+      - API: modules/api.md
+      - ASR: modules/asr.md
+      - LLM: modules/llm.md
+      - NLP: modules/nlp.md
+      - Servicios: modules/services.md
+      - Pipeline: modules/pipeline.md
+      - Configuración: modules/config.md
+      - Ingesta de datos: modules/data-ingestion.md
+      - Utilidades: modules/utils.md
