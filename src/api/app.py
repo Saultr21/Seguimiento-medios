@@ -134,7 +134,7 @@ async def redirect_visualization(request: Request):
 @app.post("/ejecutar")
 async def run_pipeline(
     channel_url: str = Form(...),
-    channel_keyword: list[str] = Form(""),
+    channel_keyword: str = Form(""),
     video_limit: int = Form(...),
     mention_keywords: list[str] = Form([]),
     podcast_limit: int = Form(...),
@@ -198,6 +198,7 @@ async def run_pipeline(
     single_video_urls_str = ",".join(filter(None, single_video_urls)) 
     
     start_time = time.time()
+
     cmd = [
         "run-pipeline",
         channel_url,
