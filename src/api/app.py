@@ -16,7 +16,6 @@ from fastapi import FastAPI, Form
 from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
-from typing import List, Optional
 import uvicorn
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True, encoding='utf-8')
