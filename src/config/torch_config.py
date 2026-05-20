@@ -2,7 +2,7 @@ import os
 import torch
 import re
 
-def resolve_device_and_dtype():
+def resolve_device_and_dtype() -> tuple[str, torch.dtype, int]:
     """
     Determina automáticamente el dispositivo de ejecución y el tipo de dato óptimo.
 
