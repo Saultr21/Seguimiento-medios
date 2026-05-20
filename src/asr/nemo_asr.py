@@ -123,7 +123,7 @@ class NemoASR(BaseASR):
         with torch.inference_mode():
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=is_cuda):
                 print("Iniciando transcripción...", flush=True)
-                if audio_language is None or audio_language == "es":
+                if audio_language is None or audio_language == "spanish":
                     language = "es"
                 else:
                     language = "en"
