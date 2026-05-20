@@ -1,3 +1,23 @@
+"""
+Dashboard interactivo de análisis de texto construido con Streamlit.
+
+Este módulo carga resultados de análisis de sentimiento, emociones y discurso de odio, y los
+presenta mediante visualizaciones interactivas.
+
+Flujo del frontend:
+    1. Carga de datos CSV mediante subida(s) o archivo por defecto.
+    2. Aplicación de filtros en sidebar.
+    3. Cálculo de KPIs.
+    4. Visualización de gráficos:
+        - Distribución de sentimiento
+        - Probabilidades por fragmento
+        - Discurso de odio
+        - Emociones (radar chart)
+    5. Tabla detallada de fragmentos.
+
+El dashboard está diseñado como una exploración analítica interactiva.
+"""
+
 import re
 
 import streamlit as st
@@ -34,6 +54,24 @@ st.markdown("""
 # ── Carga de datos ───────────────────────────────────────────────────────────
 @st.cache_data
 def _load_data(uploaded_files: str) -> pd.DataFrame:
+    """
+    Carga y consolida uno o varios archivos CSV en un único DataFrame.
+
+    Este loader se encarga de:
+    - Leer múltiples archivos CSV
+    - Normalizar columnas de probabilidad (prob_* y emo_*)
+    - Convertir porcentajes en valores numéricos
+    - Unificar todos los datasets en uno solo
+
+    Args:
+        uploaded_files:
+            Lista de archivos CSV cargados desde la interfaz o ruta por defecto.
+
+    Returns:
+        pd.DataFrame:
+            Dataset combinado, listo para análisis.
+    """
+
     data = []
 
     for file in uploaded_files:
@@ -51,6 +89,18 @@ def _load_data(uploaded_files: str) -> pd.DataFrame:
  
 # ── Sidebar: carga de archivo ────────────────────────────────────────────────
 def _render_sidebar() -> pd.DataFrame:
+    """
+    Gestiona la carga de datos desde la barra lateral.
+
+    Permite:
+    - Subida de archivo(s) CSV por el usuario
+    - Carga automática de dataset por defecto en local, si no hay archivos
+    - Manejo de errores si no se encuentra ningún dataset (mensaje de error)
+
+    Returns:
+        pd.DataFrame:
+            Dataset cargado listo para filtrado y visualización.
+    """
     st.sidebar.header("⚙️ Configuración")
 
     uploaded = st.sidebar.file_uploader(
@@ -76,7 +126,22 @@ def _render_sidebar() -> pd.DataFrame:
     return df
  
 # ── Filtros ──────────────────────────────────────────────────────────────────
-def _fetch_keywords(entity: str): # Función helper.
+def _fetch_keywords(entity: str) -> list[str]: # Función helper.
+    """
+    Extrae palabras clave desde una cadena de entidades separadas por comas y las
+    devuelve como una lista.
+
+    Args:
+        entity:
+            Entidad con conjunto de 'términos clave'.
+            Ejemplo: `"Madrid(), Barcelona(), Valencia()"`
+    
+    Returns:
+        list[str]:
+            Lista de keywords limpias.
+            Ejemplo: `["Madrid", "Barcelona", "Valencia"]`
+    """
+
     keywords = list()
     splits = entity.split(",")
     for split in splits:
@@ -86,6 +151,23 @@ def _fetch_keywords(entity: str): # Función helper.
     return keywords
 
 def _render_sidebar_filters(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aplica filtros interactivos al dataset desde la barra lateral.
+
+    Permite filtrar por:
+        - Título
+        - Sentimiento
+        - Entidades / palabras clave
+
+    Args:
+        pd.DataFrame:
+            Dataset inicial, sin filtros.
+
+    Returns:
+        pd.DataFrame:
+            Dataset filtrado.
+    """
+
     titulos = df["titulo"].unique().tolist()
     selected_title = st.sidebar.multiselect("Filtrar por título", titulos, default=titulos)
     df = df[df["titulo"].isin(selected_title)]
@@ -117,6 +199,15 @@ def _render_header():
  
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 def _render_kpis(df: pd.DataFrame):
+    """
+    Muestra indicadores principales del dataset.
+
+    Incluye:
+    - Número total de fragmentos analizados
+    - Distribución de sentimiento (negativo, positivo, neutro)
+    - Detección de discurso de odio (número de fragmentos)
+    """
+
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2, row2_col3 = st.columns(3)
     
@@ -161,6 +252,13 @@ def _render_kpis(df: pd.DataFrame):
  
 # ── Fila 1: Sentimiento + Emociones ─────────────────────────────────────────
 def _render_sentiment_section(df: pd.DataFrame):
+    """
+    Visualiza la distribución de sentimiento y probabilidades por fragmento.
+
+    Incluye:
+    - Gráfico de pastel con distribución global
+    - Barras apiladas con probabilidades por fragmento
+    """
     col_left, col_right = st.columns(2)
     
     with col_left:
@@ -198,6 +296,18 @@ def _render_sentiment_section(df: pd.DataFrame):
  
 # ── Fila 2: Discurso de odio + Sentimiento dirigido ──────────────────────────
 def _render_hate_section(df: pd.DataFrame):
+    """
+    Visualiza el análisis de discurso de odio y sentimiento dirigido.
+
+    Incluye:
+    - Distribución de etiquetas de discurso de odio.
+    - Comparación de sentimiento dirigido por fragmento.
+
+    Visualizaciones:
+    - Gráfico de barras (odio detectado vs no).
+    - Gráfico apilado de probabilidades de sentimiento dirigido.
+    """
+
     col_left, col_right = st.columns(2)
     
     with col_left:
@@ -235,6 +345,20 @@ def _render_hate_section(df: pd.DataFrame):
  
 # ── Fila 3: Radar de emociones ───────────────────────────────────────────────
 def _render_emotion_section(df: pd.DataFrame):
+    """
+    Representa el perfil emocional agregado del dataset.
+
+    Calcula la media de emociones por tipo de sentimiento y las visualiza en
+    un gráfico radar comparativo por cada sentimiento.
+
+    Emociones incluidas:
+    - Alegría
+    - Tristeza
+    - Ira
+    - Sorpresa
+    - Asco
+    - Miedo
+    """
     st.subheader("🎭 Perfil Emocional (media por sentimiento)")
     
     emo_cols = ["emo_alegría", "emo_tristeza", "emo_ira", "emo_sorpresa", "emo_asco", "emo_miedo"]
@@ -268,6 +392,13 @@ def _render_emotion_section(df: pd.DataFrame):
  
 # ── Tabla de fragmentos ──────────────────────────────────────────────────────
 def _render_data_table(df: pd.DataFrame):
+    """
+    Muestra la tabla detallada de fragmentos analizados.
+
+    Esta tabla permite inspeccionar los resultados del pipeline, con todas las entidades
+    que se han ido nombrando. Incluye formato condicional para resaltar el sentimiento.
+    """
+
     st.subheader("📋 Fragmentos detallados")
     
     cols_tabla = ["fragmento", "texto", "sentimiento", "prob_neg", "prob_neu", "prob_pos",
@@ -292,7 +423,30 @@ def _render_footer():
     st.caption("Dashboard generado con Streamlit · Datos: análisis-textos-json.csv")
 
 # MAIN
-def main() -> None:
+def main():
+    """
+    Orquesta la ejecución completa del dashboard de análisis de textos.
+
+    Este es el punto de entrada principal de la aplicación Streamlit y define el flujo
+    general de la interfaz.
+
+    Flujo de ejecución:
+        1. Renderizado del encabezado.
+        2. Carga de datos (upload o dataset por defecto).
+        3. Aplicación de filtros en sidebar.
+        4. Cálculo de métricas (KPIs).
+        5. Renderizado de visualizaciones:
+            - Sentimiento
+            - Discurso de odio
+            - Emociones
+        6. Renderizado de tabla detallada.
+        7. Renderizado del footer.
+
+    Notes:
+        Streamlit gestiona el estado de la interfaz de forma declarativa, así que no
+        devuelve nada. 
+    """
+    
     _render_header()
     
     df = _render_sidebar()
