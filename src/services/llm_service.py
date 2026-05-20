@@ -83,9 +83,9 @@ class LLMService:
 
     def _search_relevant_fragments(self, fragments: list[str], keywords: list[str], headers: dict):
         """
-        Utiliza un modelo LLM para extraer fragmentos relevantes que contengan ciertas entidades o keywords.
+        Utiliza un modelo LLM para extraer fragmentos relevantes.
         
-        El modelo recibe cada chunk y devuelve frases completas que contienen menciones relevantes. Las frases devueltas se dividen por un separador.
+        El modelo recibe el texto como chunks y devuelve frases completas que contengan menciones relevantes.
 
         Args:
             fragments (list[str]): lista de chunks de texto.
