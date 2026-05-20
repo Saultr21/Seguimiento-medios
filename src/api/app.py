@@ -89,7 +89,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 gr.mount_gradio_app(app, demo.queue(), "/gradio", css_paths=["static/style.css"])
 
 @app.get("/", response_class=RedirectResponse)
-async def launch_gradio(request: Request):
+async def launch_gradio(request: Request) -> RedirectResponse:
     """
     Redirige la ruta raíz hacia la interfaz web de Gradio.
 
@@ -113,7 +113,7 @@ async def launch_gradio(request: Request):
     return RedirectResponse(url="/gradio", status_code=301)
 
 @app.get("/visualization-frontend", response_class=RedirectResponse)
-async def redirect_visualization(request: Request):
+async def redirect_visualization(request: Request) -> RedirectResponse:
     """
     Redirige hacia el frontend de visualización de datos servido con Streamlit.
 
@@ -142,7 +142,7 @@ async def run_pipeline(
     only_transcribe: int = Form(0),
     language: str = Form(""),
     asr_model: str = Form("")
-):
+) -> StreamingResponse:
     """
     Ejecuta el pipeline principal de procesamiento multimedia.
 
@@ -249,7 +249,7 @@ async def run_pipeline(
     return StreamingResponse(log_generator(), media_type="text/plain")
 
 @app.get("/descargar-csv", response_class=FileResponse)
-async def download_csv():
+async def download_csv() -> FileResponse:
     """
     Devuelve el archivo CSV generado por el pipeline de análisis.
 
