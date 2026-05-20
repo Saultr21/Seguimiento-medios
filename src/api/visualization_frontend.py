@@ -422,10 +422,9 @@ def _render_footer():
     st.markdown("---")
     st.caption("Dashboard generado con Streamlit · Datos: análisis-textos-json.csv")
 
-# MAIN
 def main():
     """
-    Orquesta la ejecución completa del dashboard de análisis de textos.
+    Orquesta la ejecución completa del dashboard de análisis de textos, siendo expuesto al exterior.
 
     Este es el punto de entrada principal de la aplicación Streamlit y define el flujo
     general de la interfaz.
@@ -435,10 +434,7 @@ def main():
         2. Carga de datos (upload o dataset por defecto).
         3. Aplicación de filtros en sidebar.
         4. Cálculo de métricas (KPIs).
-        5. Renderizado de visualizaciones:
-            - Sentimiento
-            - Discurso de odio
-            - Emociones
+        5. Renderizado de visualizaciones (Sentimiento, discurso de odio y emociones).
         6. Renderizado de tabla detallada.
         7. Renderizado del footer.
 
