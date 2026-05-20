@@ -1,3 +1,5 @@
+from asr import BaseASR
+
 class ASRFactory:
     """
     Clase de factoría para cargar y reutilizar instancias de modelos ASR. Permite que solo se deban cargar sus métodos una vez por aplicación.
@@ -14,7 +16,7 @@ class ASRFactory:
     nemo_asr = None
     
     @staticmethod
-    def load_whisper_asr(config):
+    def load_whisper_asr(config) -> BaseASR:
         """
         Devuelve la instancia del modelo de Whisper, cargando la instancia estática de ser necesario.
 
@@ -34,7 +36,7 @@ class ASRFactory:
         return ASRFactory.whisper_asr
 
     @staticmethod
-    def load_nemo_asr(config):
+    def load_nemo_asr(config: dict) -> BaseASR:
         """
         Devuelve la instancia del modelo de NeMo, cargando la instancia estática de ser necesario.
 

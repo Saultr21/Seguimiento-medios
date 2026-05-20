@@ -28,6 +28,7 @@ class NemoASR(BaseASR):
             config(dict):
                 Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
         """
+        
         self._model, self._device = self._load_model(config)
         self._warmup()
     
@@ -45,6 +46,7 @@ class NemoASR(BaseASR):
                     - model: modelo de NeMo ASR cargado
                     - device (str): dispositivo utilizado para la transcripción ("cuda" o "cpu")
         """
+
         model: EncDecMultiTaskModel = ASRModel.from_pretrained(model_name=config['nemo_model_url'])
         
         decoding_cfg = DictConfig({
@@ -82,6 +84,7 @@ class NemoASR(BaseASR):
         """
         Libera memoria RAM y VRAM tras operaciones pesadas, llamando al recolector de basura y a limpiar el caché de CUDA.
         """
+
         gc.collect()  # Forzamos a funcionar al recolector de basura de Python.
 
         if "cuda" in self._device:
@@ -94,11 +97,12 @@ class NemoASR(BaseASR):
 
         Básicamente, se ejecuta tras cargar el modelo como primera inferencia para que las siguientes vayan más rápido.
         """
+
         dummy = np.zeros(16000, dtype=np.float32)  # 1 segundo de silencio.
         self._model.transcribe(audio=[dummy], source_lang="es", target_lang="es", task="asr", pnc="no")
         self._flush_memory()
 
-    def transcribe(self, audio_path: str, audio_language: str):
+    def transcribe(self, audio_path: str, audio_language: str) -> str:
         """
         Transcribe un archivo de audio utilizando un modelo de NeMo y devuelve el texto.
 
@@ -146,7 +150,10 @@ class NemoASR(BaseASR):
 
     def _to_mono(self, audio_path: str):
         """
-        Para que el modelo de Canary procese correctamente el audio, necesita que esté en mono. Este método usa el comando de ffmpeg para realizar esta transformación.
+        Método para transformar un audio a formato "mono".
+
+        Para que el modelo de Canary procese correctamente el audio, necesita que esté en mono.
+        Este método usa el comando de ffmpeg para realizar la transformación a un solo canal de audio.
 
         Args:
             audio_path (str):

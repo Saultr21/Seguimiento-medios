@@ -26,6 +26,7 @@ class WhisperASR(BaseASR):
             config(dict):
                 Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
         """
+        
         self._model, self._device = self._load_model(config)
     
     def _load_model(self, config):
@@ -79,7 +80,7 @@ class WhisperASR(BaseASR):
             print(f"[WARN] No se pudo inicializar el pipeline ASR: {e}", flush=True)
             return None, None
     
-    def transcribe(self, audio_path: str, audio_language: str):
+    def transcribe(self, audio_path: str, audio_language: str) -> str:
         """
         Transcribe un archivo de audio utilizando el modelo de Whisper y devuelve el texto.
 

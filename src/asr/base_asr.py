@@ -25,7 +25,7 @@ class BaseASR(ABC):
         pass
     
     @abstractmethod
-    def transcribe(self, audio_path: str, audio_language: str):
+    def transcribe(self, audio_path: str, audio_language: str) -> str:
         """
         Transcribe un archivo de audio y devuelve el texto.
 
