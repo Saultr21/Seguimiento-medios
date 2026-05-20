@@ -1,3 +1,29 @@
+"""
+Frontend interactivo desarrollado con Gradio.
+
+Este módulo proporciona una interfaz web para ejecutar el pipeline, monitorizar
+su progreso en tiempo real y descargar los resultados generados.
+
+Arquitectura:
+    Gradio UI
+        ↓
+    FastAPI backend
+        ↓
+    Pipeline subprocess
+        ↓
+    Streaming HTTP logs
+
+Notes:
+    - Permite
+        - Procesamiento de canales de YouTube.
+        - Procesamiento de vídeos individuales.
+        - Descarga de podcasts.
+        - Transcripción ASR.
+        - Filtrado de menciones.
+        - Descarga de resultados CSV.
+        - Acceso al frontend de visualización.
+"""
+
 import gradio as gr
 from urllib.parse import urlparse
 import httpx
@@ -7,14 +33,44 @@ import os
 BACKEND_URL = os.environ['BACKEND_URL']
 
 # ── Validator ─────────────────────────────────────────────────────────────────
-def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
+def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: list[str], only_transcribe: bool) -> str | None:
+    """
+    Valida la configuración introducida en la interfaz Gradio.
+
+    Comprueba que:
+    - Exista al menos una fuente de medios (vídeos de Youtube, canal de YouTube, podcasts)
+    - Esté activada la opción de solo transcripción o se hayan establecido palabras clave
+    - Las URLs individuales proporcionadas sean correctas
+
+    Args:
+        video_limit:
+            Número de vídeos del canal a procesar.
+
+        urls:
+            Lista de URLs individuales de vídeos.
+
+        podcast_limit:
+            Número de podcasts a descargar.
+
+        keywords:
+            Lista de palabras clave para filtrado.
+
+        only_transcribe:
+            Indica si solo debe ejecutarse la transcripción.
+
+    Returns:
+        str | None:
+            Mensaje de error si la validación falla; `None` en caso contrario.
+            Por tanto, `None` es el valor de validación correcta.
+    """
+
     has_media_source = video_limit or urls or podcast_limit
 
-    if not only_transcribe and not has_media_source:
-        return "ERROR: Configure al menos una fuente de medios o active 'Solo transcribir'."
+    if not has_media_source:
+        return "ERROR: Configure al menos una fuente de medios."
 
     if not only_transcribe and not keywords:
-        return "ERROR: Añada al menos una palabra clave para filtrar menciones."
+        return "ERROR: Añada al menos una palabra clave para filtrar menciones, o activa 'Solo transcribir'."
 
     for url in urls:
         parsed = urlparse(url)
@@ -23,21 +79,44 @@ def validate(video_limit, urls, podcast_limit, keywords, only_transcribe):
 
     return None
 
-def _progress_html(pct: int, danger: bool = False, done: bool = False) -> str:
+def _render_progress_bar(pct: int, error: bool = False, completed: bool = False) -> str:
+    """
+    Genera el HTML de la barra de progreso.
+
+    La barra utiliza estilos de Bootstrap y adapta su apariencia dependiendo del
+    estado de ejecución (`error`, `completed` o ninguno).
+
+    Args:
+        pct:
+            Porcentaje actual de progreso.
+
+        danger:
+            Indica si debe mostrarse el estado de error.
+
+        done:
+            Indica si el proceso se finalizó.
+
+    Returns:
+        str:
+            Fragmento HTML renderizable por `Gradio.HTML()`.
+    """
+
     pct = max(0, min(100, pct))
-    if danger:
-        color = "bg-danger"
-    elif done:
-        color = "bg-success"
+
+    if error:
+        classes = "bg-danger"
+    elif completed:
+        classes = "bg-success"
     else:
-        color = "bg-primary progress-bar-striped progress-bar-animated"
+        classes = "bg-primary progress-bar-striped progress-bar-animated"
  
     return f"""
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
         <div class="progress" style="height:24px;">
-        <div class="progress-bar {color}" role="progressbar"
+        <div class="progress-bar {classes}" role="progressbar"
             style="width:{pct}%; transition: width 0.4s ease;" aria-valuenow="{pct}"
-            aria-valuemin="0" aria-valuemax="100">
+            aria-valuemin="0" aria-valuemax="100"
+        >
             {pct}%
         </div>
         </div>
@@ -46,8 +125,23 @@ def _progress_html(pct: int, danger: bool = False, done: bool = False) -> str:
 # ── Line processor ────────────────────────────────────────────────────────────
 def process_line(line, state):
     """
-    Mutates `state` dict in-place and returns it.
-    state keys: output_text, pct, csv_available
+    Procesa una línea recibida desde el streaming del backend.
+
+    El backend puede emitir líneas especiales con el formato:
+        PROGRESS:<percentage>:<message>
+
+    Estas líneas actualizan el progreso mostrado en la interfaz. El resto de líneas se
+    interpretan como logs normales del pipeline.
+
+    Args:
+        line:
+            Línea recibida desde el backend.
+
+        state:
+            Estado mutable compartido de la interfaz.
+
+    Notes:
+        Modifica el diccionario `state` in-place.
     """
 
     if line.startswith("PROGRESS:"): # Línea de progreso.
@@ -61,10 +155,48 @@ def process_line(line, state):
 
 # ── Main generator ────────────────────────────────────────────────────────────
 async def run_pipeline(
-        channel_url, channel_keyword, video_limit, language,
-        single_video_urls, podcast_limit, mention_keywords, only_transcribe,
-        asr_model
+        channel_url: str,
+        channel_keyword: str,
+        video_limit: int,
+        language: str,
+        single_video_urls: str,
+        podcast_limit: int,
+        mention_keywords: str,
+        only_transcribe: bool,
+        asr_model: str
     ):
+    """
+    Ejecuta el pipeline desde la interfaz Gradio.
+
+    Este callback envía la configuración del usuario al backend y consume progresivamente
+    el streaming HTTP de logs generado durante la ejecución.
+
+    La interfaz se actualiza en tiempo real mostrando:
+    - Logs del pipeline
+    - Barra de progreso
+    - Estado de finalización
+    - Archivo CSV descargable
+
+    Yields:
+        tuple:
+            Actualizaciones progresivas para los componentes visuales de Gradio.
+
+                Structure:
+                    output_text (str):
+                        Logs en streaming, en formato de texto.
+
+                    progress_bar (str):
+                        HTML renderizado de la barra de progreso.
+
+                    csv_file (gr.update | gr.skip):
+                        Controla la visibilidad y valor del archivo CSV.
+                        Añade o elimina la dirección al archivo (gr.update),
+                        o no lo modifica (gr.skip).
+
+    Notes:
+        El backend transmite eventos especiales con el prefijo `PROGRESS:` para
+        actualizar la barra de progreso.
+    """
 
     state = {
         'output_text': "Empezado el streaming...",
@@ -73,7 +205,7 @@ async def run_pipeline(
 
     yield (
         state['output_text'],
-        _progress_html(state['pct']),
+        _render_progress_bar(state['pct']),
         gr.update(value=None, visible=False)
     )
 
@@ -91,7 +223,7 @@ async def run_pipeline(
     if error:
         yield (
             error,
-            _progress_html(0, danger=True), 
+            _render_progress_bar(0, error=True), 
             gr.skip()
         )
         return
@@ -126,7 +258,7 @@ async def run_pipeline(
 
                     yield (
                         state['output_text'],
-                        _progress_html(state['pct']),
+                        _render_progress_bar(state['pct']),
                         gr.skip()
                     )
     
@@ -135,7 +267,7 @@ async def run_pipeline(
 
         yield (
             state['output_text'],
-            _progress_html(0, danger=True),
+            _render_progress_bar(0, error=True),
             gr.skip()
         )
 
@@ -146,17 +278,18 @@ async def run_pipeline(
     if csv_available:
         yield (
             state['output_text'],
-            _progress_html(100 if success else state['pct'], done=success),
+            _render_progress_bar(100 if success else state['pct'], completed=True),
             gr.update(value=os.environ["CSV_OUTPUT_PATH"], visible=True)
         )
     else:
         yield(
             state['output_text'],
-            _progress_html(100 if success else state['pct'], done=success),
+            _render_progress_bar(100 if success else state['pct'], completed=success),
             gr.skip()
         )
 
 # ── Interfaz Gradio ───────────────────────────────────────────────────────────
+# Interfaz principal de Gradio para la interacción con el pipeline.
 with gr.Blocks(title="Análisis de Medios") as demo:
 
     gr.Markdown("# 📺 Análisis de Medios")
@@ -250,7 +383,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
 
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
-        progress_bar = gr.HTML(_progress_html(0))
+        progress_bar = gr.HTML(_render_progress_bar(0))
         csv_file = gr.File(value=None, label="Archivo CSV", visible=False)
         output_box = gr.Textbox(
             label="Resultado",
@@ -260,7 +393,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
         )
 
     # ── Evento ───────────────────────────────────────────────────────────────
-    submit_btn.click(
+    submit_btn.click( # Ejecuta el pipeline y actualiza la interfaz para streaming.
         fn=run_pipeline,
         inputs=[
             channel_url,
@@ -276,7 +409,7 @@ with gr.Blocks(title="Análisis de Medios") as demo:
         outputs=[output_box, progress_bar, csv_file],
     )
 
-    visualization_btn.click(
+    visualization_btn.click( # Abre el frontend de visualización.
         lambda: None,
         js = f"window.open('{BACKEND_URL}/visualization-frontend', '_blank')"
     )
