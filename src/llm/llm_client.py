@@ -20,7 +20,7 @@ class LLMClient:
         self.url = url
         self.model = model
 
-    def call(self, user_prompt: str, system_prompt: str, headers):
+    def call(self, user_prompt: str, system_prompt: str, headers) -> list[str] | None:
         """
         Realiza una llamada al modelo LLM y devuelve las respuestas válidas.
 
