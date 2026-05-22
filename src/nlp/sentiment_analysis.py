@@ -71,7 +71,7 @@ def _load_fragments(path_json: Path, debug: bool = False) -> List[Dict[str, Any]
 # ────────────────────────────────────────────────────────────────────────────────
 # Analizadores
 # ────────────────────────────────────────────────────────────────────────────────
-def _load_analyzers(language: str):
+def _load_analyzers(language: str) -> dict:
     """
     Inicializa y devuelve los analizadores de NLP de PySentimiento para diferentes tareas, incluyendo:
         - Análisis de sentimiento (positivo / negativo / neutro)
@@ -80,20 +80,33 @@ def _load_analyzers(language: str):
         - Contextual hate speech
         - Named Entity Recognition (NER, recoger palabras "clave" del texto)
         - Sentimiento dirigido (positivo / negativo / neutro)
+    
+    Args:
+        language:
+            Idioma de la entrada de texto.
+            Se transforma al idioma especificado, o a "spanish" por defecto, ya que no soporta
+            la detección automática de idioma.
 
     Returns:
         dict:
-            Diccionario con los analizadores cargados, clave = nombre de tarea, valor = analizador.
+            Diccionario con los analizadores cargados, con el formato:
+                clave = nombre de tarea, valor = analizador
     """
+
+    match language:
+        case "spanish", _:
+            lang = "es"
+        case "english":
+            lang = "en"
 
     print("Cargando analizadores…", end=" ", flush=True)
     analyzers = {
-        "sentiment": create_analyzer(task="sentiment", lang="es"),
-        "emotion": create_analyzer(task="emotion", lang="es"),
-        "hate": create_analyzer(task="hate_speech", lang="es"),
-        "ner": create_analyzer(task="ner", lang="es"),
-        "context_hate": create_analyzer(task="context_hate_speech", lang="es"),
-        "targeted_sentiment": create_analyzer(task="targeted_sentiment", lang="es"),
+        "sentiment": create_analyzer(task="sentiment", lang=lang),
+        "emotion": create_analyzer(task="emotion", lang=lang),
+        "hate": create_analyzer(task="hate_speech", lang=lang),
+        "ner": create_analyzer(task="ner", lang=lang),
+        "context_hate": create_analyzer(task="context_hate_speech", lang=lang),
+        "targeted_sentiment": create_analyzer(task="targeted_sentiment", lang=lang),
     }
     print("Analizadores cargados.")
 
@@ -102,18 +115,18 @@ def _load_analyzers(language: str):
 # ────────────────────────────────────────────────────────────────────────────────
 # Procesamiento de cada fragmento
 # ────────────────────────────────────────────────────────────────────────────────
-def _analyze_fragments(frag: dict, analyzers, debug=False) -> dict:
+def _analyze_fragments(frag: dict, analyzers: dict, debug: bool = False) -> dict:
     """
     Aplica los analizadores de NLP a cada fragmento de texto y devuelve un diccionario con resultados estandarizados y legibles.
 
     Args:
-        frag (dict):
+        frag:
             Fragmento de texto con claves "title", "index" y "text" (método `_load_fragments()`).
 
-        az (dict):
+        analyzers:
             Diccionario de analizadores cargados (método `_load_analyzers()`).
         
-        debug (bool, optional):
+        debug:
             Permite añadir información adicional de debug para el método.
 
     Returns:
@@ -190,6 +203,9 @@ def analyze_texts(input_file: str, output_file: str, language: str, debug: bool 
 
         output_file (str):
             Ruta del archivo CSV de salida.
+
+        language:
+            Idioma del texto de entrada (formato "spanish", "english"...).
 
         debug (bool, optional):
             Permite añadir información adicional de debug para el método.
