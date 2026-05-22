@@ -1,8 +1,6 @@
 import sys
 import io  
 from pathlib import Path
-import shutil  
-from typing import List
 import argparse
 
 from config.load_config import load_config
@@ -18,31 +16,49 @@ from nlp.sentiment_analysis import analyze_texts
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-def clean_folder(path: Path):
-    """Elimina todo el contenido de una carpeta, pero no la carpeta misma."""
-    if path.exists() and path.is_dir():
-        for item_path in path.iterdir():
-            try:
-                if item_path.is_file() or item_path.is_symlink():
-                    item_path.unlink()
-                elif item_path.is_dir():
-                    shutil.rmtree(item_path)
-            except Exception as e:
-                print(f"Error al eliminar {item_path}: {e}", flush=True)
-    elif not path.exists():
-        path.mkdir(parents=True, exist_ok=True)
-
 def pipeline(
     channel_url: str,
     channel_keyword: str,
     video_limit: int,
-    mention_keywords: List[str],
+    mention_keywords: list[str],
     podcast_limit: int,
-    single_video_urls: List[str],
+    single_video_urls: list[str],
     only_transcribe: bool = False,
     language: str = "",
     asr_model: str = ""
 ):
+    """
+    Función principal que ejecuta todo el flujo de trabajo del sistema.
+    
+    Args:
+        channel_url:
+            URL del canal de YouTube
+
+        channel_keyword:
+            Palabra clave para filtrar vídeos
+
+        video_limit:
+            Número máximo de vídeos del canal
+        
+        mention_keywords:
+            Palabras clave para extracción contextual
+        
+        podcast_limit:
+            Número máximo de podcasts
+
+        single_video_urls:
+            URLs individuales de vídeos
+        
+        only_transcribe:
+            Indica si solo se debe transcribir
+        
+        language:
+            Idioma de transcripción
+        
+        asr_model:
+            Nombre de modelo ASR a utilizar (Whisper o NeMo/Canary)
+    """
+
     print("PROGRESS:0:Iniciando flujo de trabajo...", flush=True)
     current_progress = 0
 

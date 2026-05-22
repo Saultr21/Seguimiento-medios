@@ -1,3 +1,3 @@
 # Pipeline
 
-::: pipeline
+::: pipeline.pipeline
