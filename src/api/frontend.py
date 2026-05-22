@@ -25,6 +25,7 @@ Notes:
 """
 
 import gradio as gr
+from gradio.utils import NamedString
 from urllib.parse import urlparse
 import httpx
 import os
@@ -33,7 +34,7 @@ import os
 BACKEND_URL = os.environ['BACKEND_URL']
 
 # ── Validator ─────────────────────────────────────────────────────────────────
-def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: list[str], only_transcribe: bool) -> str | None:
+def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: list[str], only_transcribe: bool, file_inputs: list[NamedString]) -> str | None:
     """
     Valida la configuración introducida en la interfaz Gradio.
 
@@ -64,7 +65,7 @@ def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: li
             Por tanto, `None` es el valor de validación correcta.
     """
 
-    has_media_source = video_limit or urls or podcast_limit
+    has_media_source = video_limit or urls or podcast_limit or file_inputs
 
     if not has_media_source:
         return "ERROR: Configure al menos una fuente de medios."
@@ -163,7 +164,8 @@ async def run_pipeline(
         podcast_limit: int,
         mention_keywords: str,
         only_transcribe: bool,
-        asr_model: str
+        asr_model: str,
+        file_inputs: list[NamedString]
     ):
     """
     Ejecuta el pipeline desde la interfaz Gradio.
@@ -218,6 +220,7 @@ async def run_pipeline(
         int(podcast_limit or 0),
         keywords,
         only_transcribe,
+        file_inputs
     )
 
     if error:
@@ -234,7 +237,8 @@ async def run_pipeline(
     }
 
     try:
-        data = {
+
+        payload = {
             "channel_url": channel_url or "",
             "channel_keyword": channel_keyword or "",
             "video_limit": video_limit or 0,
@@ -246,11 +250,23 @@ async def run_pipeline(
             "asr_model": asr_model
         }
 
+        files_payload = []
+        # Gradio ya crea archivos temporales cuando subimos con "Files",
+        # pero nosotros forzaremos a que FastAPI cree unos nuevos.
+        for file in file_inputs:
+            files_payload.append(
+                (
+                    "audio_files",
+                    (file.name.split("/")[-1], open(file.name, "rb"), "audio/mpeg")
+                )
+            )
+
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST",
                 f"{BACKEND_URL}/ejecutar",
-                data=data,
+                files=files_payload,
+                data=payload,
             ) as response:
                 async for line in response.aiter_lines():
                     if not line: continue
@@ -272,7 +288,7 @@ async def run_pipeline(
         )
 
         return
-    
+
     success = "Proceso terminado con código: 0" in state['output_text']
     csv_available = success and "CSV_AVAILABLE:1" in state['output_text']
     if csv_available:
@@ -378,8 +394,10 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             info="ℹ️ **Nota:** Al activar 'Solo transcribir' no es necesario añadir palabras clave para filtrado de menciones.",
         )
 
+        file_inputs = gr.Files(file_types=[".mp3", ".txt"]) # Permitimos archivos ".mp3" y ".txt".
+
     submit_btn = gr.Button("▶ Ejecutar Flujo", variant="primary")
-    visualization_btn = gr.Button("Visitar página de visualziación", variant="secondary")
+    visualization_btn = gr.Button("Visitar página de visualización", variant="secondary")
 
     # ── Salida ────────────────────────────────────────────────────────────────
     with gr.Group():
@@ -404,7 +422,8 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             podcast_limit,
             mention_keywords,
             only_transcribe,
-            asr_model
+            asr_model,
+            file_inputs
         ],
         outputs=[output_box, progress_bar, csv_file],
     )

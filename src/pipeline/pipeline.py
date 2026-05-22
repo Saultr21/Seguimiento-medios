@@ -1,5 +1,7 @@
 import sys
-import io  
+import io
+import os
+import re
 from pathlib import Path
 import argparse
 
@@ -25,7 +27,10 @@ def pipeline(
     single_video_urls: list[str],
     only_transcribe: bool = False,
     language: str = "",
-    asr_model: str = ""
+    asr_model: str = "",
+    
+    audio_files: list[str] = [],
+    # text_files: list[str] = [],
 ):
     """
     Función principal que ejecuta todo el flujo de trabajo del sistema.
@@ -97,8 +102,7 @@ def pipeline(
         return
     
     # Si no hay palabra clave, aceptamos y en la función de filtrado se tomarán los últimos videos
-    # (por compatibilidad con la nueva opción de procesar los últimos N del canal).
-    
+    # (por compatibilidad con la nueva opción de procesar los últimos N vídeos del canal).
     if video_limit is None or not isinstance(video_limit, int) or video_limit < 0:
         print("Error: El límite de videos no es válido. Debe ser un entero mayor o igual a 0.", flush=True)
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
@@ -109,8 +113,13 @@ def pipeline(
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
     
-    if not only_transcribe and not single_video_urls and video_limit == 0 and podcast_limit == 0:
-        print("Error: No se especificaron URLs de vídeos únicos, ni se configuró la descarga de vídeos de canal o podcasts. Nada que procesar.", flush=True)
+    if not only_transcribe \
+       and not single_video_urls \
+       and video_limit == 0 \
+       and podcast_limit == 0 \
+       and len(audio_files) == 0 \
+    :
+        print("Error: No se especificaron URLs de vídeos únicos, se mandaron audios ni se configuró la descarga de vídeos de canal o podcasts. Nada que procesar.", flush=True)
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
 
@@ -174,7 +183,21 @@ def pipeline(
         print(f"PROGRESS:{current_progress}:Descarga y transcripción de podcasts completada (o intentada).", flush=True)
     else:
         print(f"PROGRESS:{current_progress}:Límite de podcasts establecido en 0. Omitiendo descarga de podcasts.", flush=True)
-            
+    
+    # Paso 1.6: Transcribir archivos de audio pasados como parámetros
+    print("Paso 1.6: Transcribir archivos de audio independientes")
+    if len(audio_files) == 0:
+        print("No se han pasado archivos de audio independientes.")
+    else:
+        for audio_file in audio_files:
+            # Conseguimos el nombre del archivo limpiado.
+            base_name = Path(audio_file).stem
+            base_name = re.sub(r'[\\/*?:"<>|]', "", base_name)
+            base_name = re.sub(r"\s+", "_", base_name).strip()
+
+            # Realizamos la transcripción (asumimos que está en el mismo idioma que el resto).
+            transcription_service.transcribe_audio(base_name, Path(audio_file), language)
+
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
     print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales ===", flush=True)
     try:
@@ -252,6 +275,8 @@ def run():
     parser.add_argument("language", default="")
     parser.add_argument("asr_model", default="")
 
+    parser.add_argument("audio_files_path_str", default="")
+
     args = parser.parse_args()
 
     mention_keywords_list = [
@@ -266,6 +291,12 @@ def run():
         if url.strip()
     ] if args.single_video_urls_str else []
 
+    audio_files = [
+        path.strip()
+        for path in args.audio_files_path_str.split(",")
+        if path.strip()
+    ] if args.audio_files_path_str else []
+
     only_transcribe = bool(args.only_transcribe)
     language = args.language or None
 
@@ -278,7 +309,8 @@ def run():
         single_video_urls_list,
         only_transcribe,
         language,
-        args.asr_model
+        args.asr_model,
+        audio_files
     )
 
 if __name__ == "__main__":

@@ -12,7 +12,8 @@ import argparse
 
 import gradio as gr
 import contextlib
-from fastapi import FastAPI, Form
+import tempfile
+from fastapi import FastAPI, Form, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 from fastapi import Request
 from fastapi.staticfiles import StaticFiles
@@ -131,6 +132,16 @@ async def redirect_visualization(request: Request) -> RedirectResponse:
     """
     return RedirectResponse(url=f"localhost:{ os.getenv('VISUALIZATION_PORT') }", status_code=301)
 
+async def _save_temp_files(uploaded_files: list[UploadFile]) -> list[str]:
+    temp_files_path = []
+    for uploaded_file in uploaded_files:
+        base_name = uploaded_file.filename.split(".")[-2] + "_"
+        with tempfile.NamedTemporaryFile(delete=False, prefix=base_name, suffix=".mp3") as temp_file:
+            temp_file.write(await uploaded_file.read())
+            temp_files_path.append(temp_file.name)
+
+    return temp_files_path
+
 @app.post("/ejecutar")
 async def run_pipeline(
     channel_url: str = Form(...),
@@ -141,7 +152,9 @@ async def run_pipeline(
     single_video_urls: list[str] = Form([]),
     only_transcribe: int = Form(0),
     language: str = Form(""),
-    asr_model: str = Form("")
+    asr_model: str = Form(""),
+
+    audio_files: list[UploadFile] = File(...)
 ) -> StreamingResponse:
     """
     Ejecuta el pipeline principal de procesamiento multimedia.
@@ -195,7 +208,10 @@ async def run_pipeline(
     """
 
     mention_keywords_str = ",".join(mention_keywords)
-    single_video_urls_str = ",".join(filter(None, single_video_urls)) 
+    single_video_urls_str = ",".join(filter(None, single_video_urls))
+    
+    audio_files_path = await _save_temp_files(audio_files)
+    audio_files_path_str = ",".join(audio_files_path)
     
     start_time = time.time()
 
@@ -209,7 +225,8 @@ async def run_pipeline(
         single_video_urls_str,
         str(int(bool(only_transcribe))),
         language,
-        asr_model
+        asr_model,
+        audio_files_path_str
     ]
     
     process = subprocess.Popen(
