@@ -94,10 +94,14 @@ def _load_analyzers(language: str) -> dict:
     """
 
     match language:
-        case "spanish", _:
+        case "spanish":
             lang = "es"
+
         case "english":
             lang = "en"
+            
+        case _:
+            lang = "es"
 
     print("Cargando analizadores…", end=" ", flush=True)
     analyzers = {
