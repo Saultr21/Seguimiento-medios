@@ -24,7 +24,7 @@ class LLMService:
         """
         self.llm_model = llm_model
     
-    def _chunking(self, text: str, chunk_size=850, overlap=150):
+    def _chunking(self, text: str, chunk_size=850, overlap=150) -> list[str]:
         """
         Divide un texto en fragmentos (chunks), utilizando solo frases completas. Por tanto, no se cortan frases a la mitad, y se incluye algo de solapamiento por palabras para preservar contetxo.
 
@@ -81,7 +81,7 @@ class LLMService:
         except Exception as e:
             print(f"Problema encontrado al guardar los resultados: {e}", flush=True)
 
-    def _search_relevant_fragments(self, fragments: list[str], keywords: list[str], headers: dict):
+    def _search_relevant_fragments(self, fragments: list[str], keywords: list[str], headers: dict) -> list[str]:
         """
         Utiliza un modelo LLM para extraer fragmentos relevantes.
         
