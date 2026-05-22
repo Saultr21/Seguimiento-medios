@@ -49,6 +49,11 @@ def _generate_filename(title: str) -> str:
     
     return base
 
+# KNOWN ISSUE:
+# pytubefix.Channel.videos puede devolver una lista vacía debido a un bug conocido de la librería:
+# https://github.com/JuanBindez/pytubefix/issues/625
+#
+# Documentado en docs/known-issues.md -> pytubefix
 def _filter_channel_videos(channel_url: str, keyword: str, limit: int) -> list[dict]:
     """
     Obtiene una cantidad de vídeos `limit` de un canal de YouTube, filtrando por una palabra clave `keyword`.

@@ -13,6 +13,7 @@ plugins:
 
 nav:
   - Inicio: index.md
+  - Known Issues: known-issues.md
   - Módulos:
       - Backend: modules/api.md
       - ASR (Transcripción): modules/asr.md
