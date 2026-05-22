@@ -1,12 +1,14 @@
-from omegaconf import DictConfig
-import numpy as np
+
 import subprocess
-import torch
 import os
 import gc
 
 from asr.base_asr import BaseASR
 from config.torch_config import resolve_device_and_dtype
+
+import numpy as np
+import torch
+from omegaconf import DictConfig
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models.aed_multitask_models import EncDecMultiTaskModel
 from nemo.utils import logging as nemo_logging
@@ -28,23 +30,24 @@ class NemoASR(BaseASR):
             config(dict):
                 Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
         """
-        
+
         self._model, self._device = self._load_model(config)
         self._warmup()
     
-    def _load_model(self, config):
+    def _load_model(self, config) -> tuple[EncDecMultiTaskModel, str]:
         """
         Inicializa y configura el modelo de ASR de NeMo.
         
         Args:
             config (dict):
-                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+                Diccionario de configuración, obtenido de `load_config`.
+                Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
 
         Returns:
             tuple:
-                A tuple containing:
+                Una tupla que contiene:
                     - model: modelo de NeMo ASR cargado
-                    - device (str): dispositivo utilizado para la transcripción ("cuda" o "cpu")
+                    - device: dispositivo utilizado para la transcripción ("cuda" o "cpu")
         """
 
         model: EncDecMultiTaskModel = ASRModel.from_pretrained(model_name=config['nemo_model_url'])
@@ -111,7 +114,7 @@ class NemoASR(BaseASR):
                 Ruta al archivo de audio para transcribir.
 
             audio_language (str):
-                Código del idioma hablado en el audio. Si está puesto como "automático", se pondrá en español, ya que la transcripción automática no funciona muy bien.
+                Código del idioma hablado en el audio. Si está puesto como "automático", se pondrá en español, ya que la transcripción automática no está implementada en el modelo.
 
         Returns:
             str:

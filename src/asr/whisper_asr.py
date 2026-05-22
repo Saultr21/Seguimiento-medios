@@ -2,7 +2,8 @@ import torch
 from transformers import (
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
-    pipeline
+    pipeline,
+    AutomaticSpeechRecognitionPipeline
 )
 
 import logging
@@ -29,19 +30,19 @@ class WhisperASR(BaseASR):
         
         self._model, self._device = self._load_model(config)
     
-    def _load_model(self, config):
+    def _load_model(self, config) -> tuple[AutomaticSpeechRecognitionPipeline, str]:
         """
         Inicializa y configura el modelo Whisper.
         
         Args:
             config (dict):
-                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'nemo_model_url' para especificar el modelo de ASR.
+                Diccionario de configuración, obtenido de `load_config`. Debe incluir 'whisper_model_url' para especificar el modelo de ASR.
 
         Returns:
             tuple:
                 A tuple containing:
-                    - model: modelo de NeMo ASR cargado
-                    - device (str): dispositivo utilizado para la transcripción ("cuda" o "cpu")
+                    - model: modelo de Whisper cargado
+                    - device: dispositivo utilizado para la transcripción ("cuda" o "cpu")
         """
 
         _DEVICE, _DTYPE, _PIPELINE_DEVICE = resolve_device_and_dtype()
@@ -89,7 +90,7 @@ class WhisperASR(BaseASR):
                 Ruta al archivo de audio para transcribir.
 
             audio_language (str):
-                Código del idioma hablado en el audio.
+                Código del idioma hablado en el audio, o "auto" para transcripción automática.
 
         Returns:
             str:
