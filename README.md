@@ -29,6 +29,10 @@ Seguimiento-medios/
 ├── pyproject.toml                    # Configuración del proyecto y dependencias
 ├── README.md
 ├── requirements.txt
+├── mkdocs.yml                        # Establece la configuración de la documetnación en MkDocs.
+│
+├── docs/                             # Contiene todos los documentos utilizados por MkDocs.
+│   └── ...     
 │
 ├── src/
 │   ├── __init__.py
@@ -224,6 +228,18 @@ Inicio
 | `pandas` | Procesado y exportación de datos a CSV |
 | `jinja2` | Motor de plantillas para la interfaz web |
 | `torch` | Backend de deep learning (GPU recomendada) |
+
+---
+
+## Documentación
+
+Este proyecto utiliza `mkdocs` para generar la documentación. Para ver el resultado de la documentación, tienes que ejecutar:
+
+```bash
+mkdocs serve -a localhost:9999
+```
+
+Esto abrirá un servidor local utilizando los archivos de la carpeta `docs` con la configuración de `mkdocs.yml`. Se podrá acceder mediante la ruta puesta en el parámetro `-a`.
 
 ---
 
