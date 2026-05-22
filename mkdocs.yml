@@ -5,15 +5,19 @@ theme:
 
 plugins:
   - search
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            filters: []
 
 nav:
   - Inicio: index.md
   - Módulos:
-      - API: modules/api.md
-      - ASR: modules/asr.md
+      - Backend: modules/api.md
+      - ASR (Transcripción): modules/asr.md
       - LLM: modules/llm.md
-      - NLP: modules/nlp.md
+      - Análisis de sentimiento: modules/nlp.md
       - Servicios: modules/services.md
       - Pipeline: modules/pipeline.md
       - Configuración: modules/config.md
