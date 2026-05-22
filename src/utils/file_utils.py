@@ -16,7 +16,7 @@ def clean_temp_files(dir: Path) -> None:
         except Exception as e:
             print(f"No se pudo borrar el fichero {f}: {e}", flush=True)
 
-def read_file(path: Path):
+def read_file(path: Path) -> str:
     """
     Lee el contenido completo de un archivo de texto (.txt o similar).
 
@@ -40,7 +40,7 @@ def write_file(path, text: str):
     with open(path, 'w', encoding='utf-8') as f:
         f.write(text)
 
-def read_json_file(path: Path):
+def read_json_file(path: Path) -> dict | list | None:
     """
     Lee un archivo JSON y devuelve su contenido como un objeto `dict` o `list`. Si el archivo no existe o contiene JSON inválido, devuelve None.
 

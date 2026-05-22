@@ -1,6 +1,6 @@
 import re
 
-def clean_text(text):
+def clean_text(text) -> str:
     """
     Limpia y normaliza un texto, eliminando ruido y mejorando el formato.
 
