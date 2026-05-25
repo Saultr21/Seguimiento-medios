@@ -23,12 +23,13 @@ Notes:
         - Descarga de resultados CSV.
         - Acceso al frontend de visualización.
 """
-
-import gradio as gr
-from gradio.utils import NamedString
 from urllib.parse import urlparse
 import httpx
 import os
+import mimetypes
+import gradio as gr
+from gradio.utils import NamedString
+
  
 # ── Configuración ────────────────────────────────────────────────────────────
 BACKEND_URL = os.environ['BACKEND_URL']
@@ -254,12 +255,23 @@ async def run_pipeline(
         # Gradio ya crea archivos temporales cuando subimos con "Files",
         # pero nosotros forzaremos a que FastAPI cree unos nuevos.
         for file in file_inputs:
-            files_payload.append(
-                (
-                    "audio_files",
-                    (file.name.split("/")[-1], open(file.name, "rb"), "audio/mpeg")
+            file_name = file.name.split("/")[-1]
+            mime_type, _ = mimetypes.guess_type(file_name)
+
+            if mime_type and mime_type.startswith("audio/"):
+                files_payload.append(
+                    (
+                        "audio_files",
+                        (file_name, open(file.name, "rb"), mime_type)
+                    )
                 )
-            )
+            elif mime_type and mime_type.startswith("text/"):
+                files_payload.append(
+                    (
+                        "text_files",
+                        (file_name, open(file.name, "rb"), mime_type)
+                    )
+                )
 
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(

@@ -130,13 +130,17 @@ async def redirect_visualization(request: Request) -> RedirectResponse:
         El frontend de Streamlit se ejecuta en un servidor separado,
         por lo que el acceso se realiza mediante redirección HTTP.
     """
+
     return RedirectResponse(url=f"localhost:{ os.getenv('VISUALIZATION_PORT') }", status_code=301)
 
 async def _save_temp_files(uploaded_files: list[UploadFile]) -> list[str]:
     temp_files_path = []
     for uploaded_file in uploaded_files:
-        base_name = uploaded_file.filename.split(".")[-2] + "_"
-        with tempfile.NamedTemporaryFile(delete=False, prefix=base_name, suffix=".mp3") as temp_file:
+        base_name_parts = uploaded_file.filename.split(".")
+        extension = "." + base_name_parts[-1]
+        base_name = base_name_parts[-2] + "_"
+
+        with tempfile.NamedTemporaryFile(delete=False, prefix=base_name, suffix=extension) as temp_file:
             temp_file.write(await uploaded_file.read())
             temp_files_path.append(temp_file.name)
 
@@ -153,8 +157,8 @@ async def run_pipeline(
     only_transcribe: int = Form(0),
     language: str = Form(""),
     asr_model: str = Form(""),
-
-    audio_files: list[UploadFile] = File(...)
+    audio_files: list[UploadFile] = File(...),
+    text_files: list[UploadFile] = File(...)
 ) -> StreamingResponse:
     """
     Ejecuta el pipeline principal de procesamiento multimedia.
@@ -212,6 +216,9 @@ async def run_pipeline(
     
     audio_files_path = await _save_temp_files(audio_files)
     audio_files_path_str = ",".join(audio_files_path)
+
+    text_files_path = await _save_temp_files(text_files)
+    text_files_path_str = ",".join(text_files_path)
     
     start_time = time.time()
 
@@ -226,7 +233,8 @@ async def run_pipeline(
         str(int(bool(only_transcribe))),
         language,
         asr_model,
-        audio_files_path_str
+        audio_files_path_str,
+        text_files_path_str
     ]
     
     process = subprocess.Popen(

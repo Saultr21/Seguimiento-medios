@@ -18,6 +18,13 @@ from nlp.sentiment_analysis import analyze_texts
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
+def _parse_comma_separated_string(value: str) -> list[str]:
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ] if value else []
+
 def pipeline(
     channel_url: str,
     channel_keyword: str,
@@ -30,7 +37,7 @@ def pipeline(
     asr_model: str = "",
     
     audio_files: list[str] = [],
-    # text_files: list[str] = [],
+    text_files: list[str] = [],
 ):
     """
     Función principal que ejecuta todo el flujo de trabajo del sistema.
@@ -185,10 +192,10 @@ def pipeline(
         print(f"PROGRESS:{current_progress}:Límite de podcasts establecido en 0. Omitiendo descarga de podcasts.", flush=True)
     
     # Paso 1.6: Transcribir archivos de audio pasados como parámetros
-    print("Paso 1.6: Transcribir archivos de audio independientes")
     if len(audio_files) == 0:
-        print("No se han pasado archivos de audio independientes.")
+        print("No se han pasado archivos de audio independientes. Omitiendo transcripción...")
     else:
+        print("Paso 1.6: Transcribir archivos de audio independientes")
         for audio_file in audio_files:
             # Conseguimos el nombre del archivo limpiado.
             base_name = Path(audio_file).stem
@@ -198,8 +205,23 @@ def pipeline(
             # Realizamos la transcripción (asumimos que está en el mismo idioma que el resto).
             transcription_service.transcribe_audio(base_name, Path(audio_file), language)
 
+    # Paso 1.7: Guardar archivos de texto para permitir su procesamiento
+    if len(text_files) == 0:
+        print("No se han pasado archivos de texto independientes. Omitiendo guardado...")
+    else:
+        print("Paso 1.7: Guardar archivos de texto independientes para su análisis.")
+        for text_file in text_files:
+            base_name = Path(text_file).parts[-1]
+            base_name = re.sub(r'[\\/*?:"<>|]', "", base_name)
+            base_name = re.sub(r"\s+", "_", base_name).strip()
+
+            new_path = transcription_folder / base_name
+
+            os.replace(text_file, new_path)
+            print(f"Guardado archivo de texto independiente en la ruta {new_path}")
+
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
-    print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales ===", flush=True)
+    print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales de Audio ===", flush=True)
     try:
         clean_temp_files(Path(config['audio_folder']))
         print("Limpieza de archivos temporales de audio completada.", flush=True)
@@ -276,26 +298,15 @@ def run():
     parser.add_argument("asr_model", default="")
 
     parser.add_argument("audio_files_path_str", default="")
+    parser.add_argument("text_files_path_str", default="")
 
     args = parser.parse_args()
 
-    mention_keywords_list = [
-        kw.strip()
-        for kw in args.mention_keywords_str.split(",")
-        if kw.strip()
-    ] if args.mention_keywords_str else []
+    mention_keywords = _parse_comma_separated_string(args.mention_keywords_str)
+    single_video_urls = _parse_comma_separated_string(args.single_video_urls_str)
 
-    single_video_urls_list = [
-        url.strip()
-        for url in args.single_video_urls_str.split(",")
-        if url.strip()
-    ] if args.single_video_urls_str else []
-
-    audio_files = [
-        path.strip()
-        for path in args.audio_files_path_str.split(",")
-        if path.strip()
-    ] if args.audio_files_path_str else []
+    audio_files = _parse_comma_separated_string(args.audio_files_path_str)
+    text_files = _parse_comma_separated_string(args.text_files_path_str)
 
     only_transcribe = bool(args.only_transcribe)
     language = args.language or None
@@ -304,13 +315,14 @@ def run():
         args.channel_url,
         args.channel_keyword,
         args.video_limit,
-        mention_keywords_list,
+        mention_keywords,
         args.podcast_limit,
-        single_video_urls_list,
+        single_video_urls,
         only_transcribe,
         language,
         args.asr_model,
-        audio_files
+        audio_files,
+        text_files
     )
 
 if __name__ == "__main__":
