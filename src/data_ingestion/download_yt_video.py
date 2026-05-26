@@ -2,6 +2,8 @@ import os
 import re
 import warnings
 from pathlib import Path
+
+from utils.text_utils import format_filename
 from pytubefix import Channel, YouTube
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -39,13 +41,7 @@ def _generate_filename(title: str) -> str:
         num, dd, mm, yy = m.groups()
         base = f"{dd}-{mm}-{yy}.{num}"
     else:
-        base = re.sub(r'[\\/*?:"<>|]', "", title)
-        base = re.sub(r"\s+", "_", base).strip()
-
-        if len(base) > 100:
-            base = base[:100]
-        if not base:
-            base = f"video_descargado_{os.urandom(4).hex()}"
+        base = format_filename(title)
     
     return base
 
