@@ -101,13 +101,15 @@ Seguimiento-medios/
 
 ### Instalación
 
+Para manejar el entorno de Python, se recomienda utilizar `uv`, que facilita el manejo de las dependencias y permite instalar los paquetes sustancialmente más rápido.
+
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/Saultr21/Seguimiento-medios.git
 cd Seguimiento-medios
 
 # 2. Crear y activar entorno virtual
-python -m venv venv
+uv venv
 
 # Windows
 venv\Scripts\activate
@@ -116,14 +118,16 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # 3. Instalar dependencias
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # 4. Instalar proyecto como paquete editable (permite usar scripts personalizados)
-pip install -e .
+uv pip install -e .
 
-# 5. (Opcional) Instalar PyTorch con soporte CUDA (por ejemplo, 13.0)
-pip install --index-url https://download.pytorch.org/whl/cu130 \
-    --extra-index-url https://pypi.org/simple torch
+# 5. Ejecutar este comando para poder ejecutar Scrapling (web scrapper).
+playwright install chromium
+
+# 6. (Opcional) Instalar PyTorch con soporte CUDA (por ejemplo, 13.0)
+uv pip install --index-url https://download.pytorch.org/whl/cu130 --extra-index-url https://pypi.org/simple torch
 ```
 
 ### Configuración
