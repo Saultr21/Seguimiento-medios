@@ -131,7 +131,7 @@ async def redirect_visualization(request: Request) -> RedirectResponse:
         por lo que el acceso se realiza mediante redirección HTTP.
     """
 
-    return RedirectResponse(url=f"localhost:{ os.getenv('VISUALIZATION_PORT') }", status_code=301)
+    return RedirectResponse(url=f"http://localhost:{ os.getenv('VISUALIZATION_PORT') }", status_code=301)
 
 async def _save_temp_files(uploaded_files: list[UploadFile]) -> list[str]:
     temp_files_path = []
