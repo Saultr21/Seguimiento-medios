@@ -21,6 +21,14 @@ gradio
 streamlit
 plotly
 
+goose3
+scrapling
+curl_cffi
+playwright
+patchright
+msgspec
+browserforge
+
 # Documentación (mkdocs)
 mkdocs
 mkdocstrings[python]

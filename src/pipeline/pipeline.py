@@ -6,7 +6,7 @@ from pathlib import Path
 import argparse
 
 from config.load_config import load_config
-from services.news_scrapping_service import ScrappingService
+from services.news_scrapping_service import NewsScrappingService
 from asr import ASRFactory
 from llm import LLMClient
 from services.llm_service import LLMService
@@ -228,7 +228,7 @@ def pipeline(
         print("No se han pasado enlaces de artículos de noticias. Omitiendo...")
     else:
         print("Paso 1.8: Hacer web scrapping para artículos de noticias")
-        scrapping_service = ScrappingService()
+        scrapping_service = NewsScrappingService()
         for article_url in articles_urls:
             scrapping_service.get_article_text(article_url, str(transcription_folder))
 
