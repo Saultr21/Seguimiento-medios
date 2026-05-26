@@ -1,4 +1,5 @@
 import re
+import os
 
 def clean_text(text) -> str:
     """
@@ -25,3 +26,14 @@ def clean_text(text) -> str:
     text = re.sub(r"\.{3,}", " ", text)
 
     return text
+
+def format_filename(base_name: str):
+    formatted = re.sub(r'[\\/*?:"<>|]', "", base_name)
+    formatted = re.sub(r"\s+", "_", formatted).strip()
+
+    if len(formatted) > 100:
+        formatted = formatted[:100]
+    if not formatted:
+        formatted = f"video_descargado_{os.urandom(4).hex()}"
+
+    return formatted

@@ -6,6 +6,7 @@ from pathlib import Path
 import argparse
 
 from config.load_config import load_config
+from services.news_scrapping_service import ScrappingService
 from asr import ASRFactory
 from llm import LLMClient
 from services.llm_service import LLMService
@@ -38,6 +39,7 @@ def pipeline(
     
     audio_files: list[str] = [],
     text_files: list[str] = [],
+    articles_urls: list[str] = [],
 ):
     """
     Función principal que ejecuta todo el flujo de trabajo del sistema.
@@ -125,8 +127,9 @@ def pipeline(
        and video_limit == 0 \
        and podcast_limit == 0 \
        and len(audio_files) == 0 \
+       and len(articles_urls) == 0 \
     :
-        print("Error: No se especificaron URLs de vídeos únicos, se mandaron audios ni se configuró la descarga de vídeos de canal o podcasts. Nada que procesar.", flush=True)
+        print("Error: No se especificaron URLs para artículos o vídeos, se mandaron archivos ni se configuró la descarga de vídeos de canal o podcasts. Nada que procesar.", flush=True)
         print("PROGRESS:100:Flujo terminado con error.", flush=True)
         return
 
@@ -220,6 +223,15 @@ def pipeline(
             os.replace(text_file, new_path)
             print(f"Guardado archivo de texto independiente en la ruta {new_path}")
 
+    # Paso 1.8: Hacer web scrapping para artículos de noticias
+    if len(articles_urls) == 0:
+        print("No se han pasado enlaces de artículos de noticias. Omitiendo...")
+    else:
+        print("Paso 1.8: Hacer web scrapping para artículos de noticias")
+        scrapping_service = ScrappingService()
+        for article_url in articles_urls:
+            scrapping_service.get_article_text(article_url, str(transcription_folder))
+
     # Paso de Mantenimiento: Formatear Nombres y Limpiar Temporales
     print(f"\nPROGRESS:{current_progress}:=== Paso de Mantenimiento: Limpiar Temporales de Audio ===", flush=True)
     try:
@@ -229,7 +241,6 @@ def pipeline(
         print(f"Error durante la limpieza de temporales: {e}", flush=True)
     current_progress += 5
     print(f"PROGRESS:{current_progress}:Formateo y limpieza completados.", flush=True)
-
 
     if only_transcribe:
         # Saltar extracción y análisis
@@ -300,6 +311,8 @@ def run():
     parser.add_argument("audio_files_path_str", default="")
     parser.add_argument("text_files_path_str", default="")
 
+    parser.add_argument("articles_urls_str", default="")
+
     args = parser.parse_args()
 
     mention_keywords = _parse_comma_separated_string(args.mention_keywords_str)
@@ -307,6 +320,8 @@ def run():
 
     audio_files = _parse_comma_separated_string(args.audio_files_path_str)
     text_files = _parse_comma_separated_string(args.text_files_path_str)
+
+    articles_urls = _parse_comma_separated_string(args.articles_urls_str)
 
     only_transcribe = bool(args.only_transcribe)
     language = args.language or None
@@ -322,7 +337,8 @@ def run():
         language,
         args.asr_model,
         audio_files,
-        text_files
+        text_files,
+        articles_urls
     )
 
 if __name__ == "__main__":

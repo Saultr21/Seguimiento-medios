@@ -35,7 +35,15 @@ from gradio.utils import NamedString
 BACKEND_URL = os.environ['BACKEND_URL']
 
 # ── Validator ─────────────────────────────────────────────────────────────────
-def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: list[str], only_transcribe: bool, file_inputs: list[NamedString]) -> str | None:
+def validate(
+        video_limit: int,
+        urls: list[str],
+        podcast_limit: int,
+        keywords: list[str],
+        only_transcribe: bool,
+        file_inputs: list[NamedString],
+        articles_urls: list[str]
+    ) -> str | None:
     """
     Valida la configuración introducida en la interfaz Gradio.
 
@@ -66,7 +74,7 @@ def validate(video_limit: int, urls: list[str], podcast_limit: int, keywords: li
             Por tanto, `None` es el valor de validación correcta.
     """
 
-    has_media_source = video_limit or urls or podcast_limit or file_inputs
+    has_media_source = video_limit or urls or podcast_limit or file_inputs or articles_urls
 
     if not has_media_source:
         return "ERROR: Configure al menos una fuente de medios."
@@ -166,7 +174,8 @@ async def run_pipeline(
         mention_keywords: str,
         only_transcribe: bool,
         asr_model: str,
-        file_inputs: list[NamedString]
+        file_inputs: list[NamedString] = [],
+        articles_urls: list[str] = [],
     ):
     """
     Ejecuta el pipeline desde la interfaz Gradio.
@@ -221,7 +230,8 @@ async def run_pipeline(
         int(podcast_limit or 0),
         keywords,
         only_transcribe,
-        file_inputs
+        file_inputs,
+        articles_urls
     )
 
     if error:
@@ -248,30 +258,32 @@ async def run_pipeline(
             "only_transcribe": 1 if only_transcribe else 0,
             "single_video_urls": urls,
             "mention_keywords": keywords,
-            "asr_model": asr_model
+            "asr_model": asr_model,
+            "articles_urls": articles_urls
         }
 
         files_payload = []
         # Gradio ya crea archivos temporales cuando subimos con "Files",
         # pero nosotros forzaremos a que FastAPI cree unos nuevos.
-        for file in file_inputs:
-            file_name = file.name.split("/")[-1]
-            mime_type, _ = mimetypes.guess_type(file_name)
+        if file_inputs:
+            for file in file_inputs:
+                file_name = file.name.split("/")[-1]
+                mime_type, _ = mimetypes.guess_type(file_name)
 
-            if mime_type and mime_type.startswith("audio/"):
-                files_payload.append(
-                    (
-                        "audio_files",
-                        (file_name, open(file.name, "rb"), mime_type)
+                if mime_type and mime_type.startswith("audio/"):
+                    files_payload.append(
+                        (
+                            "audio_files",
+                            (file_name, open(file.name, "rb"), mime_type)
+                        )
                     )
-                )
-            elif mime_type and mime_type.startswith("text/"):
-                files_payload.append(
-                    (
-                        "text_files",
-                        (file_name, open(file.name, "rb"), mime_type)
+                elif mime_type and mime_type.startswith("text/"):
+                    files_payload.append(
+                        (
+                            "text_files",
+                            (file_name, open(file.name, "rb"), mime_type)
+                        )
                     )
-                )
 
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
@@ -365,6 +377,17 @@ with gr.Blocks(title="Análisis de Medios") as demo:
                 info="Una URL por línea. Se puede combinar con la configuración del canal.",
             )
 
+        with gr.Accordion("📄 Ficheros de audio o vídeo (Opcional)", elem_id="files_accordion", open=False):
+            file_inputs = gr.Files(file_types=[".mp3", ".txt"]) # Permitimos archivos ".mp3" y ".txt".
+
+        with gr.Accordion("📰 URLs de noticias (Opcional)", elem_id="news_accordion", open=False):
+            articles_urls = gr.Textbox(
+                label="Enlaces a artículos de noticieros (El Pais, 20minutos...)",
+                placeholder="https://elpais.com/topic/date/article.html\nhttps://www.20minutos.es/topic/article.html",
+                lines=4,
+                info="Una URL por línea.",
+            )
+
         # ── Podcasts ──────────────────────────────────────────────────────────────
         with gr.Accordion("🎙️ Podcasts — El Espejo Canario (Opcional)", elem_id="podcast_accordion", open=False):
             podcast_limit = gr.Number(
@@ -406,8 +429,6 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             info="ℹ️ **Nota:** Al activar 'Solo transcribir' no es necesario añadir palabras clave para filtrado de menciones.",
         )
 
-        file_inputs = gr.Files(file_types=[".mp3", ".txt"]) # Permitimos archivos ".mp3" y ".txt".
-
     submit_btn = gr.Button("▶ Ejecutar Flujo", variant="primary")
     visualization_btn = gr.Button("Visitar página de visualización", variant="secondary")
 
@@ -435,7 +456,8 @@ with gr.Blocks(title="Análisis de Medios") as demo:
             mention_keywords,
             only_transcribe,
             asr_model,
-            file_inputs
+            file_inputs,
+            articles_urls
         ],
         outputs=[output_box, progress_bar, csv_file],
     )

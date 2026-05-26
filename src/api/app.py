@@ -157,8 +157,9 @@ async def run_pipeline(
     only_transcribe: int = Form(0),
     language: str = Form(""),
     asr_model: str = Form(""),
-    audio_files: list[UploadFile] = File(...),
-    text_files: list[UploadFile] = File(...)
+    audio_files: list[UploadFile] = File(default_factory=list),
+    text_files: list[UploadFile] = File(default_factory=list),
+    articles_urls: list[str] = Form([]),
 ) -> StreamingResponse:
     """
     Ejecuta el pipeline principal de procesamiento multimedia.
@@ -219,6 +220,8 @@ async def run_pipeline(
 
     text_files_path = await _save_temp_files(text_files)
     text_files_path_str = ",".join(text_files_path)
+
+    articles_urls_str = ",".join(articles_urls)
     
     start_time = time.time()
 
@@ -234,7 +237,8 @@ async def run_pipeline(
         language,
         asr_model,
         audio_files_path_str,
-        text_files_path_str
+        text_files_path_str,
+        articles_urls_str,
     ]
     
     process = subprocess.Popen(
